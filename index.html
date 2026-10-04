@@ -669,6 +669,20 @@
   </style>
 <script src="/_aistudio-iframe.js?v=2c34bde1"></script></head>
 <body>
+  <!-- OLED Battery-Saving Blackout Screen Overlay -->
+  <div id="blackout-overlay" onclick="resetScreenActivity()" ontouchstart="resetScreenActivity()" style="display: none; position: fixed; inset: 0; background: #000000; z-index: 9999; cursor: pointer; flex-direction: column; justify-content: space-between; padding: 24px; user-select: none; -webkit-user-select: none;">
+    <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: #FFFFFF; opacity: 0.15;">
+      <span>● OLED Battery Saver Active</span>
+      <span>WakeLock Active</span>
+    </div>
+    <div style="text-align: center; font-family: var(--font-mono); color: #FFFFFF; opacity: 0.2; pointer-events: none;">
+      <div id="blackout-turns-counter" style="font-size: 36px; font-weight: 700;">0</div>
+      <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;">Pages Turned</div>
+    </div>
+    <div style="text-align: center; font-family: var(--font-mono); font-size: 11px; color: #FFFFFF; opacity: 0.25; pointer-events: none;">
+      Tap screen to wake
+    </div>
+  </div>
   <!-- Iframe Container Warning Banner (Warns if wrapped by Tiiny.host or proxy frames) -->
   <div id="iframe-warn-banner" style="display: none; background: #DC2626; color: #FFFFFF; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; font-size: 11px; line-height: 1.4;">
     <strong>⚠️ Running in Hosting Iframe (e.g. Tiiny.host):</strong><br>
@@ -894,23 +908,34 @@
           </div>
         </div>
 
-        <!-- Screen Awake & Background Keep-Alive -->
+        <!-- Screen Awake & OLED Battery Saver Blackout -->
         <div class="settings-group">
-          <div class="settings-group-title">Screen Awake & Background Mode</div>
+          <div class="settings-group-title">Screen Awake & Battery Saver</div>
           <div class="settings-row">
             <div>
-              <span>Keep Screen Awake (Reading Mode)</span>
-              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 1px;">Prevents phone from sleeping & disconnecting controller</div>
+              <span>Keep Screen Awake (WakeLock)</span>
+              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 1px;">Prevents phone from sleeping or locking while reading</div>
             </div>
             <input type="checkbox" class="toggle-checkbox" id="chk-wakelock" checked onchange="toggleWakeLock(this.checked)">
           </div>
 
-          <div class="settings-row">
-            <div>
-              <span>Background Keep-Alive Audio Session</span>
-              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 1px;">Keeps Bluetooth active even when screen dims/locks</div>
+          <!-- OLED Battery Saver Timeout Slider -->
+          <div id="blackout-settings-panel" style="margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-size: 11px; font-weight: 700;">🌙 OLED Battery Saver Timeout</span>
+              <span id="blackout-timeout-label" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent); font-weight: 700;">30s</span>
             </div>
-            <button class="btn-chip" id="btn-bg-audio" onclick="toggleBackgroundAudio()">Enable</button>
+            <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.35;">
+              Fades screen to pure black after inactivity to save battery. Clicking Bluetooth keys turns pages silently without waking screen or making sounds. Touching the phone screen immediately wakes it.
+            </p>
+            <input type="range" min="5" max="120" step="5" value="30" id="range-blackout-timeout" style="width: 100%; accent-color: var(--accent); cursor: pointer;" oninput="updateBlackoutTimeout(this.value)">
+            <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 2px;">
+              <span>5s</span>
+              <span onclick="setBlackoutPreset(15)" style="cursor: pointer; text-decoration: underline;">15s</span>
+              <span onclick="setBlackoutPreset(30)" style="cursor: pointer; text-decoration: underline; font-weight: 700; color: var(--accent);">30s (Default)</span>
+              <span onclick="setBlackoutPreset(60)" style="cursor: pointer; text-decoration: underline;">60s</span>
+              <span>120s</span>
+            </div>
           </div>
         </div>
 
@@ -1536,10 +1561,16 @@
     let dispatchMode = localStorage.getItem('komote_dispatch_mode') || 'beacon';
 
     async function dispatchKoreaderEvent(endpoint, label, clickPitch) {
-      if (hapticsOn && navigator.vibrate) {
-        try { navigator.vibrate(12); } catch(e) {}
+      if (!isBlackedOut) {
+        if (hapticsOn && navigator.vibrate) {
+          try { navigator.vibrate(12); } catch(e) {}
+        }
+        playClick(clickPitch || 160);
+      } else {
+        blackoutPagesTurned++;
+        const counter = document.getElementById('blackout-turns-counter');
+        if (counter) counter.innerText = blackoutPagesTurned;
       }
-      playClick(clickPitch || 160);
 
       const now = performance.now();
       // Guard against overloading Kindle's single-threaded Lua event loop
@@ -1738,11 +1769,14 @@
     function toggleWakeLock(enabled) {
       wakeLockEnabled = enabled;
       localStorage.setItem('komote_wakelock', enabled);
+      const panel = document.getElementById('blackout-settings-panel');
+      if (panel) panel.style.display = enabled ? 'block' : 'none';
       if (enabled) {
         requestWakeLock();
         showToast('☕ Keep Screen Awake Enabled');
       } else {
         releaseWakeLock();
+        resetScreenActivity();
         showToast('Screen Sleep Allowed');
       }
       updateWakeLockUI();
@@ -1751,6 +1785,8 @@
     function updateWakeLockUI() {
       const chk = document.getElementById('chk-wakelock');
       if (chk) chk.checked = wakeLockEnabled;
+      const panel = document.getElementById('blackout-settings-panel');
+      if (panel) panel.style.display = wakeLockEnabled ? 'block' : 'none';
     }
 
     // Re-acquire wake lock when tab returns to foreground
@@ -1767,85 +1803,66 @@
       }
     }, { once: true });
 
-    // --- BACKGROUND KEEP-ALIVE AUDIO & MEDIASESSION ---
-    let bgAudioActive = false;
-    let bgAudioOsc = null;
+    // --- SMART BATTERY-SAVING OLED BLACKOUT ENGINE ---
+    let isBlackedOut = false;
+    let blackoutTimeoutSec = localStorage.getItem('komote_blackout_timeout') !== null 
+      ? parseInt(localStorage.getItem('komote_blackout_timeout'), 10) 
+      : 30; // 30 seconds default
+    let lastScreenTouchTime = Date.now();
+    let blackoutPagesTurned = 0;
 
-    function toggleBackgroundAudio() {
-      if (bgAudioActive) {
-        stopBackgroundAudio();
-      } else {
-        startBackgroundAudio();
+    function resetScreenActivity() {
+      lastScreenTouchTime = Date.now();
+      if (isBlackedOut) {
+        isBlackedOut = false;
+        const overlay = document.getElementById('blackout-overlay');
+        if (overlay) overlay.style.display = 'none';
       }
     }
 
-    function startBackgroundAudio() {
-      try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+    function triggerBlackout() {
+      if (!wakeLockEnabled || blackoutTimeoutSec <= 0) return;
+      isBlackedOut = true;
+      const overlay = document.getElementById('blackout-overlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        const counter = document.getElementById('blackout-turns-counter');
+        if (counter) counter.innerText = blackoutPagesTurned;
+      }
+    }
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        gain.gain.value = 0.00001; // Inaudible silent carrier
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        bgAudioOsc = osc;
-        bgAudioActive = true;
-
-        if ('mediaSession' in navigator) {
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: 'KOMOTE Remote Bridge',
-            artist: 'Kindle KOReader',
-            album: 'Wireless Page Turner'
-          });
-          navigator.mediaSession.playbackState = 'playing';
-
-          navigator.mediaSession.setActionHandler('nexttrack', () => {
-            handleTurn(isSwapped ? -1 : 1);
-            highlightPaddle(document.getElementById(isSwapped ? 'paddle-left' : 'paddle-right'));
-          });
-          navigator.mediaSession.setActionHandler('previoustrack', () => {
-            handleTurn(isSwapped ? 1 : -1);
-            highlightPaddle(document.getElementById(isSwapped ? 'paddle-right' : 'paddle-left'));
-          });
-          navigator.mediaSession.setActionHandler('play', () => {
-            handleTurn(isSwapped ? -1 : 1);
-          });
-          navigator.mediaSession.setActionHandler('pause', () => {
-            handleTurn(isSwapped ? -1 : 1);
-          });
+    // Inactivity check: timer fades to black after expired timeout
+    setInterval(() => {
+      if (wakeLockEnabled && blackoutTimeoutSec > 0 && !isBlackedOut) {
+        const elapsed = (Date.now() - lastScreenTouchTime) / 1000;
+        if (elapsed >= blackoutTimeoutSec) {
+          triggerBlackout();
         }
-
-        const btn = document.getElementById('btn-bg-audio');
-        if (btn) {
-          btn.innerText = 'Active ✓';
-          btn.style.borderColor = '#10B981';
-          btn.style.color = '#34D399';
-        }
-        showToast('Background Keep-Alive Active');
-      } catch(e) {
-        showToast('Audio keep-alive error');
       }
+    }, 1000);
+
+    // Screen touches immediately wake the display
+    window.addEventListener('pointerdown', resetScreenActivity, { capture: true, passive: true });
+    window.addEventListener('touchstart', resetScreenActivity, { capture: true, passive: true });
+
+    function updateBlackoutTimeout(val) {
+      blackoutTimeoutSec = parseInt(val, 10);
+      localStorage.setItem('komote_blackout_timeout', blackoutTimeoutSec);
+      const label = document.getElementById('blackout-timeout-label');
+      if (label) label.innerText = blackoutTimeoutSec === 0 ? 'Disabled' : blackoutTimeoutSec + 's';
     }
 
-    function stopBackgroundAudio() {
-      if (bgAudioOsc) {
-        try { bgAudioOsc.stop(); } catch(e) {}
-        bgAudioOsc = null;
-      }
-      bgAudioActive = false;
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'none';
-      }
-      const btn = document.getElementById('btn-bg-audio');
-      if (btn) {
-        btn.innerText = 'Enable';
-        btn.style.borderColor = '';
-        btn.style.color = '';
-      }
-      showToast('Background Keep-Alive Stopped');
+    function setBlackoutPreset(sec) {
+      const slider = document.getElementById('range-blackout-timeout');
+      if (slider) slider.value = sec;
+      updateBlackoutTimeout(sec);
     }
+
+    // Initialize blackout settings in UI
+    const initialSlider = document.getElementById('range-blackout-timeout');
+    if (initialSlider) initialSlider.value = blackoutTimeoutSec;
+    const initialLabel = document.getElementById('blackout-timeout-label');
+    if (initialLabel) initialLabel.innerText = blackoutTimeoutSec === 0 ? 'Disabled' : blackoutTimeoutSec + 's';
 
     // Try acquiring wake lock on start
     requestWakeLock();

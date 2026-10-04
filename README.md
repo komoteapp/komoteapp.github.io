@@ -1,61 +1,72 @@
 # KOMOTE — Kindle KOReader Wireless Remote
 
-Turn pages and control your Kindle KOReader wirelessly from your phone, tablet, or Bluetooth controller!
+**KOMOTE** is a lightweight, tactile wireless page-turner and controller bridge for e-readers running **KOReader** (including Amazon Kindle Paperwhite, Oasis, Basic, Voyage, and Scribe).
+
+Hosted live at **[komoteapp.github.io](https://komoteapp.github.io)**, KOMOTE turns your phone, tablet, or spare device into a responsive, zero-latency remote control that communicates directly with your Kindle over local Wi-Fi.
 
 ---
 
-## ⚡ DO I NEED TO HOST THIS ON NETLIFY OR GITHUB?
-**NO! You do NOT need to upload or host this anywhere if you don't want to!**
+## 📖 The Problem KOMOTE Solves
 
-### Why double-clicking `index.html` directly failed with "No directory found" & broke Bluetooth:
-- When you open an `index.html` file directly from a file manager or ZIP folder, your browser loads it as a `file:///...` address.
-- **Android & Chrome OS security strictly prohibit installing PWAs from `file://` addresses.** That's why tapping install created a broken shortcut and displayed "No directory found after splash screen".
-- **Browsers also restrict the Gamepad API and Bluetooth permissions on `file://` URLs** for security reasons.
+Reading on an e-reader propped up on a stand, reading in bed during cold winter nights with hands tucked warmly under the blanket, or reading while on a treadmill often requires constantly reaching out to tap the screen. While some modern e-readers have proprietary accessories, Kindles do not natively support commercial Bluetooth page-turner rings, camera clickers, or gamepads.
+
+**KOMOTE bridges that gap.** By running as a high-performance, offline-first Progressive Web App (PWA) on your phone or tablet, KOMOTE connects to any Bluetooth clicker, ring, or gamepad, and instantly translates those physical clicks into local network commands sent directly to KOReader's built-in HTTP inspector server over Wi-Fi. Your Kindle turns pages effortlessly without physical contact.
 
 ---
 
-## 📱 The Best & Easiest Way: Install Native Offline PWA (0 Hosting Required)
+## ⚡ Key Highlights & Architecture
 
-1. Open your live KOMOTE URL on your phone's Chrome browser:
-   (or scan the QR code displayed inside the app)
-2. Tap the **Install App** button (or Chrome's 3 dots menu ⋮ → **Install app** / **Add to Home screen**).
-3. Chrome builds and installs an official **Android WebAPK** right onto your phone home screen!
-4. **100% OFFLINE**: The Service Worker caches everything in your phone memory. Once installed, it works completely offline without internet—as long as your phone and Kindle are on the same Wi-Fi router or phone hotspot!
-5. **Full Bluetooth Support**: Running as a real installed PWA gives Chrome full native access to Bluetooth controllers (8BitDo, Joy-Cons, VR remotes, page turner rings) and Gamepad APIs!
+### 1. Dual Tactile Paddle Deck
+- **Oversized Thumb Paddles**: Full-bleed left/right or stacked paddles designed for one-handed thumb navigation without looking at the screen.
+- **Acoustic & Haptic Feedback**: Optional mechanical switch click sound (Web Audio synthesis) and haptic vibration feedback for every page turn.
+- **Dynamic Layouts**: Instant switching between 50/50 split columns and 70/30 primary-reach thumb zones, plus instant left/right paddle swapping for left-handed readers.
+
+### 2. Universal Bluetooth & Gamepad Bridge
+- **Bluetooth Ring Page Turners & Selfie Remotes**: Seamlessly maps volume rockers, shutter buttons, and TikTok scrolling rings.
+- **Game Controllers & Gamepads**: Native Gamepad API integration supporting 8BitDo controllers, Joy-Cons, Xbox/PlayStation controllers, and VR air mice.
+- **Web Bluetooth LE Direct Pairing**: Direct GATT connection inside Chrome on Android that communicates straight to KOMOTE.
+- **Interactive Learn Mode**: Tap "Map Button" in the Controller menu, press any button on your remote, and KOMOTE binds it instantly.
+- **Android Accessibility Integration**: Built-in Key Mapper profile generator for system-level background key handling across all apps.
+- **Persistent Key Mappings**: Clean, device-saved configuration stored in local storage for instant reconnects.
+
+### 3. Screen Awake with Smart Battery-Saving OLED Blackout
+- **Keep Screen Awake (WakeLock)**: Holds the display awake so your phone never enters OS system sleep while reading.
+- **Customizable Blackout Timeout**: Features a built-in battery saver (default 30 seconds, customizable via slider) that smoothly fades the screen to total black (`#000000`).
+- **OLED Energy Efficiency**: On OLED/AMOLED screens, pure black turns pixels completely off (0 nits, near-zero power draw), letting you read for hours without battery drain.
+- **Silent Night Reading**: When blacked out, Bluetooth controller clicks turn Kindle pages with zero delay while keeping the screen completely dark and silencing haptic vibrations and sound clicks.
+- **Screen Touch Wake**: Touching the phone screen immediately wakes up the display and restores full controls.
+
+### 4. Full KOReader Control Suite
+- **Font Sizing**: Instant `Font +` and `Font -` adjustments on the fly.
+- **Frontlight & Warmth**: Granular control over frontlight intensity and warm amber light.
+- **Ghosting Refresh**: 1-tap E-Ink screen flash (waveform inversion) to clear ghosting artifacts.
+- **Night Mode Toggle**: Quick invert for late-night dark reading.
+- **Chapter & Navigation**: Jump between chapters, open Table of Contents, or toggle bookmarks.
+- **Custom Event Catalog**: Quick-add presets for screen rotation, sleep mode, taking screenshots, and custom Lua event endpoints.
+
+### 5. Crash-Proof Safe Beacon Transport
+- **Resilient Dispatch**: KOReader's lightweight HTTP inspector runs a single-threaded LuaSocket server that can drop connections if flooded with preflight CORS `OPTIONS` requests.
+- **Zero Preflights**: KOMOTE utilizes an in-memory image beacon engine that dispatches clean, serial HTTP `GET` requests with automatic queue throttling, ensuring 100% reliability without crashing KOReader.
+
+### 6. 100% Offline & Private
+- **Zero External Servers**: Communication happens strictly between your browser and your Kindle over your local Wi-Fi router or phone mobile hotspot.
+- **No Analytics or Telemetry**: No cloud tracking, user tracking, or third-party dependencies at runtime.
+- **Service Worker Caching**: All application assets are cached locally for offline execution.
 
 ---
 
-## 💻 Option B: Run 100% Locally on PC / Mac / Termux (Offline Server)
+## 📱 Hardware & Software Compatibility
 
-If you extracted this ZIP and want to run it on your local network without using any cloud link:
-- **Windows**: Double-click `start-windows.bat`. It starts a local server at `http://localhost:8080` and opens your browser.
-- **Mac / Linux / Android Termux**: Run `bash start-mac-linux.sh` (or `python3 -m http.server 8080`).
-- When accessed via `http://localhost:8080` (or your computer's local IP), Bluetooth and Gamepad APIs work 100%!
-
----
-
-## ☁️ Option C: Free Cloud Hosting (Netlify / GitHub Pages)
-If you want your own permanent personal URL to share with others:
-1. **Netlify Drop**: Go to [https://app.netlify.com/drop](https://app.netlify.com/drop) and drag-and-drop this extracted folder. Instant HTTPS URL!
-2. **GitHub Pages**: Upload this folder to a GitHub repo, turn on GitHub Pages in repo Settings.
+| Device | Compatibility |
+| :--- | :--- |
+| **E-Reader Hardware** | Any Kindle device running KOReader (Paperwhite 1-5, Oasis 1-3, Basic, Voyage, Scribe) |
+| **Software Platform** | KOReader (v2020.03+) with HTTP Inspector enabled (`Start server` on port 8080) |
+| **Client Devices** | Android phones/tablets, iPhone, iPad, Mac, Windows, Linux, Chromebooks |
+| **Supported Remotes** | Bluetooth ring page-turners, camera shutter clickers, presentation remotes, 8BitDo Micro/Zero 2, Nintendo Joy-Cons, Xbox/PS gamepads |
 
 ---
 
-## 📖 Kindle KOReader Setup (1-Time)
-1. On your Kindle in KOReader:
-   - Connect to the same Wi-Fi network (or your phone's personal hotspot).
-   - Tap top menu → **Tools (wrench/screwdriver icon)** → **More tools** → **KOReader HTTP inspector**.
-   - Tap **Start server** (default port: `8080`).
-   - Note the IP address shown on your Kindle (e.g. `192.168.1.91`).
-2. Open KOMOTE on your phone:
-   - Tap the status pill at the top.
-   - Enter your Kindle IP address (e.g. `192.168.1.91`).
-   - Done! Tap the paddles to turn pages!
+## 🌐 Project Access
 
----
-
-## 🎮 Bluetooth Gamepad & Remote Support
-- Connect any Bluetooth gamepad (8BitDo Micro/Zero 2, Joy-Con, VR remote, TikTok/Kindle ring clicker, or keyboard) to your phone.
-- Tap **🎮 Controller** in KOMOTE.
-- All standard buttons (D-Pad, Analog Stick, Arrows, Volume keys, Space, Enter, PageDown/Up) are mapped by default!
-- You can tap **Map Button** or choose any button directly from the **Quick Pick** dropdown.
+KOMOTE is accessible on any modern web browser at:
+**[https://komoteapp.github.io](https://komoteapp.github.io)**
