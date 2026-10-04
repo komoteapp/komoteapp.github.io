@@ -1,0 +1,2653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>KOMOTE — Kindle KOReader Remote</title>
+  <meta name="description" content="Tactile wireless page turner and Bluetooth remote bridge for Kindle KOReader.">
+  <meta name="theme-color" content="#121316">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KOMOTE">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="pwa-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="pwa-512x512.png">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <style>
+    :root {
+      --bg: #121316;
+      --card: #18181B;
+      --card-border: #27272A;
+      --card-hover: #202025;
+      --text: #F4F3EF;
+      --text-muted: #A1A1AA;
+      --accent: #D9532F;
+      --accent-hover: #C04524;
+      --accent-soft: rgba(217, 83, 47, 0.12);
+      --success: #10B981;
+      --warning: #F59E0B;
+      --paddle-prev: #202025;
+      --paddle-prev-border: #323238;
+      --paddle-next: #D9532F;
+      --paddle-next-hover: #C04524;
+      --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    body.light {
+      --bg: #F4F3EF;
+      --card: #FFFFFF;
+      --card-border: #DCD9CE;
+      --card-hover: #F0EEE6;
+      --text: #18181B;
+      --text-muted: #6B7280;
+      --paddle-prev: #EAE8E1;
+      --paddle-prev-border: #D0CDBE;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 10px 20px 10px;
+      transition: background 0.15s ease, color 0.15s ease;
+      max-width: 600px;
+      margin: 0 auto;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Minimal Top Navigation Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 8px;
+    }
+
+    .wordmark {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+      flex-shrink: 0;
+    }
+
+    .dot.offline {
+      background: #EF4444;
+      box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+    }
+
+    .dot.busy {
+      background: var(--warning);
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+    }
+
+    .btn-hamburger {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.12s, transform 0.05s;
+    }
+
+    .btn-hamburger:active {
+      transform: scale(0.95);
+    }
+
+    /* Deck Controls Bar */
+    .deck-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+
+    .btn-chip {
+      height: 28px;
+      padding: 0 8px;
+      border-radius: 7px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: background 0.12s, border-color 0.12s, transform 0.05s;
+    }
+
+    .btn-chip:active {
+      transform: scale(0.96);
+    }
+
+    /* PADDLE DECK: 50/50 & 70/30 (STACKED) LAYOUT MODES */
+    .dual-deck {
+      display: grid;
+      gap: 8px;
+      min-height: 260px;
+      height: 46vh;
+      max-height: 440px;
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+    }
+
+    /* 50/50 Layout (Side-by-side columns) */
+    .dual-deck.layout-50-50 {
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr;
+    }
+
+    /* 70/30 Layout (Stacked: Next Page on Top 70%, Prev Page below 30%) */
+    .dual-deck.layout-70-30 {
+      grid-template-columns: 1fr;
+      grid-template-rows: 7fr 3fr;
+    }
+
+    .paddle-btn {
+      position: relative;
+      border-radius: 18px;
+      border: 2px solid;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      transition: transform 0.08s ease, filter 0.08s ease, box-shadow 0.08s ease;
+      touch-action: manipulation;
+    }
+
+    .paddle-btn:active, .paddle-btn.highlight {
+      transform: scale(0.97);
+      filter: brightness(0.9);
+      box-shadow: 0 0 16px var(--accent);
+    }
+
+    .paddle-prev {
+      background: var(--paddle-prev);
+      border-color: var(--paddle-prev-border);
+      color: var(--text);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .paddle-next {
+      background: var(--paddle-next);
+      border-color: var(--paddle-next);
+      color: #FFFFFF;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    }
+
+    .paddle-icon {
+      font-size: 34px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .paddle-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .paddle-hint {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      opacity: 0.8;
+      margin-top: 3px;
+    }
+
+    .paddle-tag {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 9px;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      opacity: 0.7;
+    }
+
+    /* 70/30 specific styling adjustments */
+    .dual-deck.layout-70-30 .paddle-btn {
+      flex-direction: row;
+      gap: 12px;
+    }
+
+    .dual-deck.layout-70-30 .paddle-icon {
+      margin-bottom: 0;
+      font-size: 36px;
+    }
+
+    .dual-deck.layout-70-30 #paddle-right {
+      order: 1; /* Next on top */
+    }
+
+    .dual-deck.layout-70-30 #paddle-left {
+      order: 2; /* Prev below */
+    }
+
+    /* ACTIONS TOOLBAR: 4 BUTTONS PER LINE STRICTLY */
+    .actions-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 10px 8px;
+      margin-bottom: 8px;
+    }
+
+    .toolbar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .toolbar-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .tool-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px 2px;
+      color: var(--text);
+      font-size: 10.5px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 48px;
+      min-width: 0;
+      transition: background 0.12s, border-color 0.12s, transform 0.05s;
+    }
+
+    .tool-btn:active {
+      transform: scale(0.96);
+      background: var(--card-hover);
+    }
+
+    .tool-btn span:last-child {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      padding: 0 2px;
+    }
+
+    .tool-btn.custom {
+      border-color: rgba(217, 83, 47, 0.35);
+      background: rgba(217, 83, 47, 0.04);
+    }
+
+    .tool-icon {
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    /* INLINE AUTO-TURNER DECK CARD (Below Buttons) */
+    .autoturner-deck-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+    }
+
+    /* Bottom Status Bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--text-muted);
+    }
+
+    /* Modal / Drawer Overlays */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-sheet {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-bottom: none;
+      border-radius: 22px 22px 0 0;
+      width: 100%;
+      max-width: 600px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 18px 26px 18px;
+      box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-overlay.open .modal-sheet {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .modal-content-scroll {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-right: 4px;
+      margin-bottom: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Settings Groups */
+    .settings-group {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .settings-group-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .form-input {
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 11px;
+      outline: none;
+      font-family: var(--font-mono);
+    }
+
+    .form-input:focus {
+      border-color: var(--accent);
+    }
+
+    .toggle-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Accent Color Swatches */
+    .color-swatches-grid {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .swatch-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #fff;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+
+    .swatch-btn:active {
+      transform: scale(0.9);
+    }
+
+    .swatch-btn.active {
+      border-color: #FFFFFF;
+      box-shadow: 0 0 0 2px var(--card);
+    }
+
+    /* Button Customization Rows */
+    .button-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+    }
+
+    /* Bluetooth Controller Mapping Card */
+    .bt-card {
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .bt-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .bt-action-label {
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .bt-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .bt-tag {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      color: var(--accent);
+      font-size: 9.5px;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-learn {
+      height: 26px;
+      padding: 0 8px;
+      border-radius: 6px;
+      border: 1px solid var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-learn.listening {
+      background: var(--accent);
+      color: #FFFFFF;
+      animation: pulse-border 1s infinite alternate;
+    }
+
+    @keyframes pulse-border {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+
+    .catalog-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      gap: 8px;
+    }
+
+    .catalog-item-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .catalog-item-name {
+      font-size: 11.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .catalog-item-desc {
+      font-size: 9.5px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #18181B;
+      border: 1px solid var(--accent);
+      color: #FFFFFF;
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 2000;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+<script src="/_aistudio-iframe.js?v=2c34bde1"></script></head>
+<body>
+  <!-- Iframe Container Warning Banner (Warns if wrapped by Tiiny.host or proxy frames) -->
+  <div id="iframe-warn-banner" style="display: none; background: #DC2626; color: #FFFFFF; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; font-size: 11px; line-height: 1.4;">
+    <strong>⚠️ Running in Hosting Iframe (e.g. Tiiny.host):</strong><br>
+    Your hosting provider loaded this page inside a sandboxed frame which blocks local Wi-Fi.
+    <div style="margin-top: 6px;">
+      <button onclick="escapeIframe()" style="padding: 4px 10px; background: #FFFFFF; color: #DC2626; font-weight: 700; border: none; border-radius: 6px; cursor: pointer; font-size: 11px;">
+        🚀 Open in Direct Tab
+      </button>
+    </div>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="wordmark">
+      <span>KOMOTE</span>
+      <div class="header-status" onclick="openSettingsModal()" title="Tap to configure Kindle Wi-Fi connection">
+        <div class="dot" id="status-dot"></div>
+        <span id="target-pill-text">192.168.1.91</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <button class="btn-chip" onclick="openBluetoothModal()" title="Map Bluetooth Controller / Remote" style="border-color: #3B82F6; color: #60A5FA;">
+        🎮 Controller
+      </button>
+      <button class="btn-hamburger" onclick="openSettingsModal()" title="Open Settings Menu">
+        ☰
+      </button>
+    </div>
+  </header>
+
+  <!-- Deck Controls Bar -->
+  <div class="deck-bar">
+    <span class="section-title">Paddles</span>
+    <div style="display: flex; gap: 6px;">
+      <button class="btn-chip" onclick="toggleDeckLayout()" id="btn-layout-toggle" title="Switch between 50/50 and 70/30 layouts">
+        📐 50/50 Split
+      </button>
+      <button class="btn-chip" onclick="swapPaddles()" id="btn-swap-deck" title="Swap paddle directions">
+        🔄 Swap
+      </button>
+    </div>
+  </div>
+
+  <!-- 1. DUAL PADDLE TOUCH DECK (Supports 50/50 & 70/30 Stacked Layouts) -->
+  <div class="dual-deck layout-50-50" id="dual-deck-container">
+    <!-- Left / Top Paddle -->
+    <button class="paddle-btn paddle-prev" id="paddle-left" onclick="handleLeftClick()">
+      <span class="paddle-tag" id="tag-left">GotoViewRel/-1</span>
+      <div class="paddle-icon" id="icon-left">←</div>
+      <div>
+        <div class="paddle-title" id="title-left">Prev Page</div>
+        <div class="paddle-hint" id="hint-left">Tap Left</div>
+      </div>
+    </button>
+
+    <!-- Right / Bottom Paddle -->
+    <button class="paddle-btn paddle-next" id="paddle-right" onclick="handleRightClick()">
+      <span class="paddle-tag" id="tag-right">GotoViewRel/1</span>
+      <div class="paddle-icon" id="icon-right">→</div>
+      <div>
+        <div class="paddle-title" id="title-right">Next Page</div>
+        <div class="paddle-hint" id="hint-right">Tap Right</div>
+      </div>
+    </button>
+  </div>
+
+  <!-- 2. ACTIONS TOOLBAR (STRICT 4 BUTTONS PER LINE - CAN BE TOGGLED IN SETTINGS) -->
+  <div class="actions-card" id="actions-card">
+    <div class="toolbar-header">
+      <span class="section-title">Controls</span>
+      <div style="display: flex; gap: 4px;">
+        <button class="btn-chip" onclick="openCustomizeModal()" style="height: 24px; padding: 0 6px; font-size: 10px; border-color: var(--accent); color: var(--accent);">
+          ⚙️ Customize
+        </button>
+      </div>
+    </div>
+
+    <!-- Rendered strictly 4 buttons per line -->
+    <div class="toolbar-grid" id="toolbar-grid">
+      <!-- Injected via JavaScript -->
+    </div>
+  </div>
+
+  <!-- 3. INLINE AUTO-TURNER DECK CARD (Directly Below Buttons - Can Be Toggled) -->
+  <div class="autoturner-deck-card" id="deck-autoturner-card">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 11.5px;">⏱️ <strong>Auto-Turner:</strong></span>
+        <span id="deck-auto-status" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent); font-weight: 700;">Off</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="btn-chip" onclick="adjustAutoTime(-5)">-5s</button>
+        <span id="deck-auto-seconds" style="font-family: var(--font-mono); font-weight: 700; width: 30px; text-align: center; font-size: 11px;">40s</span>
+        <button class="btn-chip" onclick="adjustAutoTime(5)">+5s</button>
+        <button class="btn-chip" id="btn-deck-auto-toggle" style="background: var(--accent); color: #fff; border: none; font-weight: 700;" onclick="toggleAutoTurner()">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. COMPACT BOTTOM STATUS BAR -->
+  <div class="status-bar">
+    <span id="last-log" style="color: #10B981;">Ready · Tap any button</span>
+    <span id="latency-label">0ms</span>
+  </div>
+
+  <!-- 5. HAMBURGER SETTINGS POPUP / DRAWER -->
+  <div class="modal-overlay" id="settings-modal" onclick="onOverlayClick(event, 'settings-modal')">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">KOMOTE Settings</h3>
+        <button class="btn-chip" onclick="closeSettingsModal()">✕ Close</button>
+      </div>
+
+      <div class="modal-content-scroll">
+        <!-- Install to Phone Home Screen (Offline) -->
+        <div class="settings-group" style="background: rgba(217, 83, 47, 0.08); border: 1px solid rgba(217, 83, 47, 0.35); border-radius: 14px; padding: 12px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <span>📱 Install to Phone Home Screen</span>
+          </div>
+          <p style="font-size: 11px; opacity: 0.85; line-height: 1.4; margin: 0 0 10px 0;">
+            Install KOMOTE as an offline native app on your phone. Works without internet over your local Wi-Fi.
+          </p>
+
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-chip" id="btn-pwa-install-menu" onclick="triggerPWAInstall()" style="flex: 1; background: var(--accent); color: #FFFFFF; border: none; font-weight: 700; height: 34px; font-size: 11.5px;">
+              📲 Install App Now
+            </button>
+            <button class="btn-chip" onclick="copyCurrentUrl()" style="height: 34px; font-size: 11px;" title="Copy page link">
+              📋 Copy Link
+            </button>
+          </div>
+
+          <div id="install-hint-box" style="margin-top: 10px; padding: 9px 11px; background: rgba(0,0,0,0.25); border-radius: 9px; font-size: 10.5px; line-height: 1.45; border-left: 3px solid var(--accent); display: none;">
+          </div>
+        </div>
+
+        <!-- Accent Color Picker -->
+        <div class="settings-group">
+          <div class="settings-group-title">Accent Theme Color</div>
+          <div class="color-swatches-grid" id="color-swatches-grid">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Screen Elements Visibility (Show/Hide Toolbar & Auto-Turner) -->
+        <div class="settings-group">
+          <div class="settings-group-title">Display Elements</div>
+          <div class="settings-row">
+            <span>Show Controls Toolbar</span>
+            <input type="checkbox" class="toggle-checkbox" id="chk-show-toolbar" checked onchange="toggleToolbarVisibility(this.checked)">
+          </div>
+          <div class="settings-row">
+            <span>Show Auto-Turner Below Buttons</span>
+            <input type="checkbox" class="toggle-checkbox" id="chk-show-autoturner" checked onchange="toggleAutoTurnerVisibility(this.checked)">
+          </div>
+        </div>
+
+        <!-- Paddle Layout Options (50/50 vs 70/30) -->
+        <div class="settings-group">
+          <div class="settings-group-title">Paddle Layout Style</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button class="preset-btn active" id="btn-layout-50" onclick="setDeckLayout('50-50')" style="padding: 8px; height: auto; text-align: center;">
+              <strong>50 / 50 Columns</strong><br>
+              <span style="font-size: 9px; opacity: 0.8;">Side-by-side</span>
+            </button>
+            <button class="preset-btn" id="btn-layout-70" onclick="setDeckLayout('70-30')" style="padding: 8px; height: auto; text-align: center;">
+              <strong>70 / 30 Stacked</strong><br>
+              <span style="font-size: 9px; opacity: 0.8;">Next top / Prev below</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bluetooth Remote Setup Shortcut -->
+        <div class="settings-group">
+          <div class="settings-group-title">Bluetooth Remote & Gamepad</div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-size: 11.5px;">Map any Bluetooth gamepad, ring, or clicker</div>
+            <button class="btn-chip" onclick="closeSettingsModal(); openBluetoothModal();" style="border-color: #3B82F6; color: #60A5FA; font-weight: 700;">
+              🎮 Open Mapper
+            </button>
+          </div>
+        </div>
+
+        <!-- Kindle Wi-Fi Connection (Fixed on Home Kindle) -->
+        <div class="settings-group">
+          <div class="settings-group-title">Kindle Wi-Fi Connection</div>
+          <div style="font-size: 11px; color: var(--text-muted);">
+            Fixed Kindle Wi-Fi Target (Default: 192.168.1.91:8080)
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" class="form-input" id="host-input" value="192.168.1.91:8080" placeholder="IP:Port" style="flex: 1;" onchange="saveHost()">
+            <button class="btn-chip" onclick="saveHost()">Save</button>
+            <button class="btn-chip" onclick="resetDefaultHost()">Reset</button>
+            <button class="btn-chip" onclick="pingKindle()" id="btn-ping" style="border-color: var(--accent); color: var(--accent); font-weight: 700;">
+              ⚡ Ping
+            </button>
+          </div>
+        </div>
+
+        <!-- Remote Tactile Controls -->
+        <div class="settings-group">
+          <div class="settings-group-title">Feedback & Display</div>
+          
+          <div class="settings-row">
+            <span>Swap Directions</span>
+            <button class="btn-chip" onclick="swapPaddles()" id="btn-swap-menu">Swap Sides</button>
+          </div>
+
+          <div class="settings-row">
+            <span>Mechanical Switch Click</span>
+            <button class="btn-chip" onclick="toggleAudio()" id="btn-audio-menu">Click: ON</button>
+          </div>
+
+          <div class="settings-row">
+            <span>Haptic Vibration</span>
+            <button class="btn-chip" onclick="toggleHaptics()" id="btn-vibe-menu">Vibe: ON</button>
+          </div>
+
+          <div class="settings-row">
+            <span>Display Theme</span>
+            <button class="btn-chip" onclick="toggleTheme()" id="btn-theme-menu">Day Paper</button>
+          </div>
+        </div>
+
+        <!-- Screen Awake & Background Keep-Alive -->
+        <div class="settings-group">
+          <div class="settings-group-title">Screen Awake & Background Mode</div>
+          <div class="settings-row">
+            <div>
+              <span>Keep Screen Awake (Reading Mode)</span>
+              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 1px;">Prevents phone from sleeping & disconnecting controller</div>
+            </div>
+            <input type="checkbox" class="toggle-checkbox" id="chk-wakelock" checked onchange="toggleWakeLock(this.checked)">
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <span>Background Keep-Alive Audio Session</span>
+              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 1px;">Keeps Bluetooth active even when screen dims/locks</div>
+            </div>
+            <button class="btn-chip" id="btn-bg-audio" onclick="toggleBackgroundAudio()">Enable</button>
+          </div>
+        </div>
+
+        <!-- Package / Sideload as Native Android APK Guide Button -->
+        <div class="settings-group">
+          <div class="settings-group-title">Sideload as Android App (APK)</div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="font-size: 11px;">Package KOMOTE into a standalone .apk</div>
+            <button class="btn-chip" onclick="closeSettingsModal(); openApkModal();" style="border-color: #10B981; color: #34D399; font-weight: 700;">
+              📦 APK Guide
+            </button>
+          </div>
+        </div>
+
+        <!-- Kindle KOReader Events Link -->
+        <div style="font-size: 11px; font-family: var(--font-mono); opacity: 0.6; text-align: center; padding: 4px;">
+          <a href="http://192.168.1.91:8080/koreader/event" id="link-events" target="_blank" style="color: var(--accent); text-decoration: none;">
+            Browse All Kindle KOReader Events ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. ADVANCED BLUETOOTH CONTROLLER & KEY MAPPER MODAL -->
+  <div class="modal-overlay" id="bluetooth-modal" onclick="onOverlayClick(event, 'bluetooth-modal')">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">🎮 Bluetooth Controller Mapper</h3>
+          <p style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 2px;">
+            Supports all gamepads (L1/R1 shoulders) & Bluetooth remotes
+          </p>
+        </div>
+        <button class="btn-chip" onclick="closeBluetoothModal()">✕ Close</button>
+      </div>
+
+      <div class="modal-content-scroll">
+        <!-- Controller Status Banner -->
+        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 8px 12px; font-size: 11px; color: #93C5FD; display: flex; align-items: center; justify-content: space-between;" id="bt-status-bar">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="dot" style="background: #3B82F6; box-shadow: 0 0 6px #3B82F6;"></span>
+            <span id="bt-connected-name">Listening for Gamepad & Remote buttons</span>
+          </div>
+        </div>
+
+        <!-- Live Key Test Indicator -->
+        <div style="background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 8px 12px; text-align: center; font-size: 11px; font-family: var(--font-mono);" id="bt-test-banner">
+          <span>🎯 Press any button on your controller to test / see identification...</span>
+        </div>
+
+        <!-- Active Mappings List (Fully Customizable) -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono);">
+            Action Mappings
+          </div>
+          <button class="btn-chip" onclick="showAddActionDialog()" style="border-color: var(--accent); color: var(--accent); font-weight: 700; height: 26px;">
+            + Add Action
+          </button>
+        </div>
+
+        <!-- Add Action Selector Panel (Hidden by default) -->
+        <div id="add-action-panel" style="display: none; background: var(--bg); border: 1px solid var(--accent); border-radius: 12px; padding: 10px; flex-direction: column; gap: 8px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: var(--accent);">Pick an action to add:</div>
+          <select id="action-select-dropdown" class="form-input" style="width: 100%;">
+            <option value="nextPage">📖 Next Page (Turn Forward)</option>
+            <option value="prevPage">📖 Prev Page (Turn Back)</option>
+            <option value="lightInc">💡 Light Intensity +</option>
+            <option value="lightDec">💡 Light Intensity -</option>
+            <option value="warmthInc">🌡️ Warmth +</option>
+            <option value="warmthDec">🌡️ Warmth -</option>
+            <option value="fontInc">🔤 Font Size +</option>
+            <option value="fontDec">🔤 Font Size -</option>
+            <option value="refresh">⚡ Flash Screen (E-Ink Refresh)</option>
+            <option value="night">🌙 Night Mode Invert</option>
+            <option value="bookmark">🔖 Bookmark Current Page</option>
+            <option value="nextCh">⏭️ Next Chapter</option>
+            <option value="prevCh">⏮️ Prev Chapter</option>
+            <option value="autoToggle">⏱️ Auto-Turner Start / Pause</option>
+          </select>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-chip" style="flex: 1; background: var(--accent); color: #fff; border: none; font-weight: 700; height: 32px;" onclick="confirmAddAction()">
+              Confirm Add
+            </button>
+            <button class="btn-chip" style="height: 32px;" onclick="hideAddActionDialog()">
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 6px;" id="bt-mappings-list">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+          <button class="btn-chip" onclick="clearBluetoothMappings()" style="font-size: 10px; color: #EF4444; border-color: rgba(239, 68, 68, 0.4);">
+            🗑️ Clear All Mappings
+          </button>
+          <span style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono);">
+            Browser navigation locked on page
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. SIDELOAD AS ANDROID APK / STANDALONE APP MODAL -->
+  <div class="modal-overlay" id="apk-modal" onclick="onOverlayClick(event, 'apk-modal')">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">📦 Package as Sideloadable APK</h3>
+          <p style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 2px;">
+            Run KOMOTE as a true standalone Android application
+          </p>
+        </div>
+        <button class="btn-chip" onclick="closeApkModal()">✕ Close</button>
+      </div>
+
+      <div class="modal-content-scroll">
+        <!-- Option 1: WebAPK (Instant from Chrome) -->
+        <div style="background: var(--bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 13px; font-weight: 700; color: #10B981; display: flex; align-items: center; gap: 6px;">
+            <span>⚡ Method 1: Instant WebAPK (Recommended)</span>
+          </div>
+          <p style="font-size: 11px; opacity: 0.85; line-height: 1.4;">
+            Google Chrome on Android can automatically compile KOMOTE into a real Android APK (WebAPK) signed on your device:
+          </p>
+          <ol style="margin-left: 18px; font-size: 10.5px; opacity: 0.9; line-height: 1.5;">
+            <li>Open KOMOTE in Chrome on your phone.</li>
+            <li>Tap Chrome's 3-dot menu (<strong>⋮</strong>).</li>
+            <li>Tap <strong>"Install app"</strong> or <strong>"Add to Home Screen"</strong>.</li>
+            <li>Android generates an APK in your app drawer that runs in its own process, completely independent of the browser!</li>
+          </ol>
+        </div>
+
+        <!-- Option 2: PWABuilder (1-Click Sideloadable APK) -->
+        <div style="background: var(--bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 13px; font-weight: 700; color: #3B82F6; display: flex; align-items: center; gap: 6px;">
+            <span>📱 Method 2: PWABuilder (Downloadable .apk File)</span>
+          </div>
+          <p style="font-size: 11px; opacity: 0.85; line-height: 1.4;">
+            Microsoft's free open-source PWABuilder turns any hosted web app into an installable Android APK file:
+          </p>
+          <ol style="margin-left: 18px; font-size: 10.5px; opacity: 0.9; line-height: 1.5;">
+            <li>Go to <a href="https://www.pwabuilder.com" target="_blank" style="color: #60A5FA;">www.pwabuilder.com</a>.</li>
+            <li>Paste your hosted KOMOTE URL (e.g. GitHub Pages).</li>
+            <li>Click <strong>"Package for Android"</strong>.</li>
+            <li>Download the generated <code style="color: var(--accent);">.apk</code> file, transfer to your phone, and tap to install!</li>
+          </ol>
+        </div>
+
+        <!-- Option 3: Screen Always-On Note -->
+        <div style="background: rgba(217, 83, 47, 0.1); border: 1px solid rgba(217, 83, 47, 0.3); border-radius: 12px; padding: 10px 12px; font-size: 11px; color: #FCA5A5; line-height: 1.4;">
+          <strong>💡 Why the controller disconnected when screen turned off:</strong><br>
+          Android and iOS freeze all background event loops when the screen sleeps. We added <strong>"Keep Screen Awake"</strong> in KOMOTE Settings (enabled by default) so your phone screen stays active at minimum brightness on your table while you read on your Kindle!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. BUTTON CUSTOMIZATION & COMMAND CATALOG MODAL -->
+  <div class="modal-overlay" id="customize-modal" onclick="onOverlayClick(event, 'customize-modal')">
+    <div class="modal-sheet" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">Customize Buttons</h3>
+          <p style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 2px;">
+            Toggle buttons on/off or add custom actions
+          </p>
+        </div>
+        <button class="btn-chip" onclick="closeCustomizeModal()">✕ Close</button>
+      </div>
+
+      <div class="modal-content-scroll">
+        <!-- Standard Buttons Visibility -->
+        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono);">
+          Standard Toolbar Buttons (Default 4 Per Line)
+        </div>
+        <div id="standard-toggles-list" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Your Custom Buttons Section -->
+        <div style="margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono);">
+          Active Custom Buttons
+        </div>
+        <div id="custom-buttons-list" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Verified Quick-Add Commands -->
+        <div style="margin-top: 6px; font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; font-family: var(--font-mono);">
+          ⚡ Quick-Add Verified Commands
+        </div>
+        <div id="command-catalog-list" style="display: flex; flex-direction: column; gap: 6px;">
+          <!-- Warmth commands -->
+        </div>
+
+        <!-- Manual Custom Button Input -->
+        <div style="background: var(--bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px; margin-top: 6px;">
+          <div style="font-size: 11.5px; font-weight: 700; margin-bottom: 2px;">
+            + Manual Custom Action
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">
+            Enter any custom event supported by your KOReader
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; gap: 6px;">
+              <input type="text" class="form-input" id="custom-btn-name" placeholder="Label (e.g. Warmth)" style="flex: 2;">
+              <input type="text" class="form-input" id="custom-btn-icon" placeholder="Icon (e.g. 🌡️)" style="flex: 1;">
+            </div>
+            <input type="text" class="form-input" id="custom-btn-endpoint" placeholder="Endpoint (e.g. /koreader/event/IncreaseWarmth/1)">
+            <button class="btn-chip" style="background: var(--accent); color: #fff; border: none; font-weight: 700; height: 34px;" onclick="addCustomButtonManual()">
+              + Add Button to Toolbar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast-el">Loaded on Kindle</div>
+
+  <script>
+    // --- BROWSER HISTORY TRAP TO PREVENT SHOULDER/BACK BUTTON NAVIGATION ---
+    try {
+      history.pushState(null, '', window.location.href);
+      window.addEventListener('popstate', function() {
+        history.pushState(null, '', window.location.href);
+      });
+    } catch(e) {}
+
+    // --- ACCENT COLOR THEMES ---
+    const ACCENT_COLORS = [
+      { name: 'Flame Orange', hex: '#D9532F' },
+      { name: 'Warm Amber', hex: '#D97706' },
+      { name: 'Emerald Green', hex: '#059669' },
+      { name: 'Ocean Sapphire', hex: '#2563EB' },
+      { name: 'Royal Violet', hex: '#7C3AED' },
+      { name: 'Crimson Rose', hex: '#E11D48' },
+      { name: 'Teal Cyan', hex: '#0D9488' },
+      { name: 'Paper Slate', hex: '#475569' }
+    ];
+
+    let currentAccent = localStorage.getItem('komote_accent_color') || '#D9532F';
+    let currentLayout = localStorage.getItem('komote_deck_layout') || '50-50';
+    let showToolbar = localStorage.getItem('komote_show_toolbar') !== 'false';
+    let showAutoTurner = localStorage.getItem('komote_show_autoturner') !== 'false';
+
+    // --- HUMAN-READABLE GAMEPAD BUTTON LABELS ---
+    const GP_LABELS = {
+      0: 'A / Bottom Action (✕)',
+      1: 'B / Right Action (◯)',
+      2: 'X / Left Action (▢)',
+      3: 'Y / Top Action (△)',
+      4: 'Left Shoulder (L1 / LB)',
+      5: 'Right Shoulder (R1 / RB)',
+      6: 'Left Trigger (L2 / LT)',
+      7: 'Right Trigger (R2 / RT)',
+      8: 'Select / Back / Share',
+      9: 'Start / Options / Menu',
+      10: 'Left Stick Click (L3)',
+      11: 'Right Stick Click (R3)',
+      12: 'D-Pad Up',
+      13: 'D-Pad Down',
+      14: 'D-Pad Left',
+      15: 'D-Pad Right',
+      16: 'Home / Guide'
+    };
+
+    // --- ALL AVAILABLE KOREADER ACTION DEFINITIONS ---
+    const ACTION_CATALOG = {
+      nextPage: { name: 'Next Page', icon: '→', endpoint: '/koreader/event/GotoViewRel/1' },
+      prevPage: { name: 'Prev Page', icon: '←', endpoint: '/koreader/event/GotoViewRel/-1' },
+      lightInc: { name: 'Light Intensity +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1' },
+      lightDec: { name: 'Light Intensity -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1' },
+      warmthInc: { name: 'Warmth +', icon: '🌡️+', endpoint: '/koreader/event/IncreaseWarmth/1' },
+      warmthDec: { name: 'Warmth -', icon: '🌡️-', endpoint: '/koreader/event/DecreaseWarmth/1' },
+      fontInc: { name: 'Font Size +', icon: 'A+', endpoint: '/koreader/event/IncreaseFontSize/1' },
+      fontDec: { name: 'Font Size -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1' },
+      refresh: { name: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh' },
+      night: { name: 'Night Mode', icon: '🌙', endpoint: '/koreader/event/ToggleNightMode' },
+      bookmark: { name: 'Bookmark Page', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark' },
+      nextCh: { name: 'Next Chapter', icon: '⏭️', endpoint: '/koreader/event/GotoNextChapter' },
+      prevCh: { name: 'Prev Chapter', icon: '⏮️', endpoint: '/koreader/event/GotoPrevChapter' },
+      autoToggle: { name: 'Auto-Turner Toggle', icon: '⏱️', endpoint: '__auto_toggle__' }
+    };
+
+    // Standard Default Mappings (Clean strings, comprehensive for all Bluetooth clickers & controllers)
+    // Empty default mappings: No buttons pre-mapped so user's controller has zero conflicts
+    const DEFAULT_BT_MAPPINGS = {
+      nextPage: [],
+      prevPage: [],
+      lightInc: [],
+      lightDec: [],
+      fontInc: [],
+      fontDec: [],
+      refresh: [],
+      bookmark: [],
+      night: [],
+      nextCh: [],
+      prevCh: [],
+      autoToggle: []
+    };
+
+    let btMappings = JSON.parse(JSON.stringify(DEFAULT_BT_MAPPINGS));
+    try {
+      const savedBt = localStorage.getItem('komote_custom_bt_mappings_v6');
+      if (savedBt) {
+        const parsed = JSON.parse(savedBt);
+        for (const k in DEFAULT_BT_MAPPINGS) {
+          if (Array.isArray(parsed[k])) {
+            btMappings[k] = parsed[k];
+          }
+        }
+      }
+    } catch(e) {
+      btMappings = JSON.parse(JSON.stringify(DEFAULT_BT_MAPPINGS));
+    }
+
+    let learningAction = null; // null or action key (e.g. 'nextPage')
+
+    // --- STATE CONFIGURATION ---
+    let host = localStorage.getItem('komote_host') || '192.168.1.91:8080';
+    let audioOn = localStorage.getItem('komote_audio') !== 'false';
+    let hapticsOn = localStorage.getItem('komote_haptics') !== 'false';
+    let isDark = localStorage.getItem('komote_theme') !== 'light';
+    let isSwapped = localStorage.getItem('komote_swapped') === 'true';
+
+    // Standard Buttons: Exactly 8 default visible buttons = 2 rows of 4 buttons
+    const STANDARD_BUTTONS = [
+      { id: 'btn_font_inc', label: 'Font +', icon: 'A+', endpoint: '/koreader/event/IncreaseFontSize/1', defaultVisible: true },
+      { id: 'btn_font_dec', label: 'Font -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1', defaultVisible: true },
+      { id: 'btn_light_inc', label: 'Light +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1', defaultVisible: true },
+      { id: 'btn_light_dec', label: 'Light -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1', defaultVisible: true },
+      { id: 'btn_refresh', label: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh', defaultVisible: true },
+      { id: 'btn_night', label: 'Night Mode', icon: '🌙', endpoint: '/koreader/event/ToggleNightMode', defaultVisible: true },
+      { id: 'btn_bookmark', label: 'Bookmark', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark', defaultVisible: true },
+      { id: 'btn_next_ch', label: 'Next Chapter', icon: '⏭️', endpoint: '/koreader/event/GotoNextChapter', defaultVisible: true },
+      { id: 'btn_prev_ch', label: 'Prev Chapter', icon: '⏮️', endpoint: '/koreader/event/GotoPrevChapter', defaultVisible: false },
+      { id: 'btn_toc', label: 'Contents', icon: '📑', endpoint: '/koreader/event/ShowToc', defaultVisible: false }
+    ];
+
+    const COMMAND_CATALOG = [
+      { label: 'Warmth +', icon: '🌡️+', endpoint: '/koreader/event/IncreaseWarmth/1', desc: 'Increase warm amber light' },
+      { label: 'Warmth -', icon: '🌡️-', endpoint: '/koreader/event/DecreaseWarmth/1', desc: 'Decrease warm amber light' }
+    ];
+
+    let buttonVisibility = {};
+    try {
+      const savedVis = localStorage.getItem('komote_button_visibility_v8');
+      if (savedVis) {
+        buttonVisibility = JSON.parse(savedVis);
+      } else {
+        STANDARD_BUTTONS.forEach(b => { buttonVisibility[b.id] = b.defaultVisible; });
+      }
+    } catch(e) {
+      STANDARD_BUTTONS.forEach(b => { buttonVisibility[b.id] = b.defaultVisible; });
+    }
+
+    let customButtons = [];
+    try {
+      const savedCustom = localStorage.getItem('komote_custom_buttons_v8');
+      if (savedCustom) {
+        const parsed = JSON.parse(savedCustom);
+        const nonWorking = ['WordSpacing', 'GotoViewRel/10', 'GotoViewRel/-10', 'GotoViewRel/50', 'GotoViewRel/-50', 'ShowReadingHistory', 'ShowBookmarks', 'IterateRotation', 'Screenshot', 'Suspend', 'ToggleWifi'];
+        customButtons = parsed.filter(b => !nonWorking.some(nw => (b.endpoint || '').includes(nw)));
+      }
+    } catch(e) {
+      customButtons = [];
+    }
+
+    let sessionTurns = 0;
+    let autoTimer = null;
+    let autoSec = 40;
+    let autoRemaining = 40;
+
+    window.__retainedBeacons = [];
+
+    function cleanHost(h) {
+      return (h || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
+    }
+
+    // --- ACCENT THEME ENGINE ---
+    function applyAccentColor(hex) {
+      currentAccent = hex;
+      localStorage.setItem('komote_accent_color', hex);
+      const root = document.documentElement;
+      root.style.setProperty('--accent', hex);
+      root.style.setProperty('--paddle-next', hex);
+      root.style.setProperty('--accent-hover', hex);
+      root.style.setProperty('--accent-soft', hexToRgba(hex, 0.14));
+      renderColorSwatches();
+    }
+
+    function hexToRgba(hex, alpha) {
+      const c = hex.replace('#', '');
+      const r = parseInt(c.substring(0, 2), 16) || 217;
+      const g = parseInt(c.substring(2, 4), 16) || 83;
+      const b = parseInt(c.substring(4, 6), 16) || 47;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function renderColorSwatches() {
+      const container = document.getElementById('color-swatches-grid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      ACCENT_COLORS.forEach(c => {
+        const isSelected = c.hex.toLowerCase() === currentAccent.toLowerCase();
+        const btn = document.createElement('button');
+        btn.className = 'swatch-btn' + (isSelected ? ' active' : '');
+        btn.style.backgroundColor = c.hex;
+        btn.title = c.name;
+        btn.innerHTML = isSelected ? '✓' : '';
+        btn.onclick = () => applyAccentColor(c.hex);
+        container.appendChild(btn);
+      });
+    }
+
+    // --- SCREEN ELEMENTS VISIBILITY ENGINE ---
+    function toggleToolbarVisibility(visible) {
+      showToolbar = visible;
+      localStorage.setItem('komote_show_toolbar', visible);
+      const el = document.getElementById('actions-card');
+      if (el) el.style.display = visible ? '' : 'none';
+      const chk = document.getElementById('chk-show-toolbar');
+      if (chk) chk.checked = visible;
+    }
+
+    function toggleAutoTurnerVisibility(visible) {
+      showAutoTurner = visible;
+      localStorage.setItem('komote_show_autoturner', visible);
+      const el = document.getElementById('deck-autoturner-card');
+      if (el) el.style.display = visible ? '' : 'none';
+      const chk = document.getElementById('chk-show-autoturner');
+      if (chk) chk.checked = visible;
+    }
+
+    // --- PADDLE LAYOUT ENGINE (50/50 vs 70/30) ---
+    function setDeckLayout(mode) {
+      currentLayout = mode;
+      localStorage.setItem('komote_deck_layout', mode);
+      const container = document.getElementById('dual-deck-container');
+      const toggleBtn = document.getElementById('btn-layout-toggle');
+      const btn50 = document.getElementById('btn-layout-50');
+      const btn70 = document.getElementById('btn-layout-70');
+
+      if (mode === '70-30') {
+        container.className = 'dual-deck layout-70-30';
+        toggleBtn.innerText = '📐 70/30 Stack';
+        if (btn70) btn70.classList.add('active');
+        if (btn50) btn50.classList.remove('active');
+        document.getElementById('hint-right').innerText = 'Next (70% Tap Zone)';
+        document.getElementById('hint-left').innerText = 'Prev (30% Zone)';
+      } else {
+        container.className = 'dual-deck layout-50-50';
+        toggleBtn.innerText = '📐 50/50 Split';
+        if (btn50) btn50.classList.add('active');
+        if (btn70) btn70.classList.remove('active');
+        document.getElementById('hint-left').innerText = isSwapped ? 'Tap Left (Next)' : 'Tap Left (Prev)';
+        document.getElementById('hint-right').innerText = isSwapped ? 'Tap Right (Prev)' : 'Tap Right (Next)';
+      }
+    }
+
+    function toggleDeckLayout() {
+      const nextMode = currentLayout === '50-50' ? '70-30' : '50-50';
+      setDeckLayout(nextMode);
+      showToast('Switched to ' + (nextMode === '70-30' ? '70/30 Stacked' : '50/50 Columns'));
+    }
+
+    // --- INITIALIZE UI ---
+    applyAccentColor(currentAccent);
+    setDeckLayout(currentLayout);
+    toggleToolbarVisibility(showToolbar);
+    toggleAutoTurnerVisibility(showAutoTurner);
+
+    document.getElementById('host-input').value = cleanHost(host);
+    document.getElementById('target-pill-text').innerText = cleanHost(host).split(':')[0] || cleanHost(host);
+    document.getElementById('link-events').href = 'http://' + cleanHost(host) + '/koreader/event';
+    if (!isDark) document.body.classList.add('light');
+    updateThemeLabel();
+    updateAudioLabel();
+    updateHapticsLabel();
+    updatePaddlesUI();
+    renderToolbar();
+
+    // --- AUDIO & HAPTICS (100% Offline, Zero External Latency) ---
+    let audioCtx = null;
+    function playClick(freq) {
+      if (!audioOn) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq || 160, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.035);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.038);
+      } catch(e) {}
+    }
+
+    function toggleAudio() {
+      audioOn = !audioOn;
+      localStorage.setItem('komote_audio', audioOn);
+      updateAudioLabel();
+    }
+    function updateAudioLabel() {
+      const el = document.getElementById('btn-audio-menu');
+      if (el) el.innerText = 'Click: ' + (audioOn ? 'ON' : 'OFF');
+    }
+
+    function toggleHaptics() {
+      hapticsOn = !hapticsOn;
+      localStorage.setItem('komote_haptics', hapticsOn);
+      updateHapticsLabel();
+    }
+    function updateHapticsLabel() {
+      const el = document.getElementById('btn-vibe-menu');
+      if (el) el.innerText = 'Vibe: ' + (hapticsOn ? 'ON' : 'OFF');
+    }
+
+    function toggleTheme() {
+      isDark = !isDark;
+      document.body.classList.toggle('light', !isDark);
+      localStorage.setItem('komote_theme', isDark ? 'dark' : 'light');
+      updateThemeLabel();
+    }
+    function updateThemeLabel() {
+      const el = document.getElementById('btn-theme-menu');
+      if (el) el.innerText = isDark ? 'Day Paper' : 'Night Ink';
+    }
+
+    // --- DUAL PADDLES SETUP ---
+    function swapPaddles() {
+      isSwapped = !isSwapped;
+      localStorage.setItem('komote_swapped', isSwapped);
+      updatePaddlesUI();
+    }
+
+    function updatePaddlesUI() {
+      const leftBtn = document.getElementById('paddle-left');
+      const rightBtn = document.getElementById('paddle-right');
+      const swapBtn = document.getElementById('btn-swap-deck');
+
+      if (!isSwapped) {
+        leftBtn.className = 'paddle-btn paddle-prev';
+        document.getElementById('tag-left').innerText = 'GotoViewRel/-1';
+        document.getElementById('icon-left').innerText = '←';
+        document.getElementById('title-left').innerText = 'Prev Page';
+        document.getElementById('hint-left').innerText = currentLayout === '70-30' ? 'Prev (30% Zone)' : 'Tap Left (Prev)';
+
+        rightBtn.className = 'paddle-btn paddle-next';
+        document.getElementById('tag-right').innerText = 'GotoViewRel/1';
+        document.getElementById('icon-right').innerText = '→';
+        document.getElementById('title-right').innerText = 'Next Page';
+        document.getElementById('hint-right').innerText = currentLayout === '70-30' ? 'Next (70% Tap Zone)' : 'Tap Right (Next)';
+        if (swapBtn) swapBtn.style.color = '';
+      } else {
+        leftBtn.className = 'paddle-btn paddle-next';
+        document.getElementById('tag-left').innerText = 'GotoViewRel/1';
+        document.getElementById('icon-left').innerText = '→';
+        document.getElementById('title-left').innerText = 'Next Page';
+        document.getElementById('hint-left').innerText = currentLayout === '70-30' ? 'Next (70% Zone)' : 'Tap Left (Next)';
+
+        rightBtn.className = 'paddle-btn paddle-prev';
+        document.getElementById('tag-right').innerText = 'GotoViewRel/-1';
+        document.getElementById('icon-right').innerText = '←';
+        document.getElementById('title-right').innerText = 'Prev Page';
+        document.getElementById('hint-right').innerText = currentLayout === '70-30' ? 'Prev (30% Zone)' : 'Tap Right (Prev)';
+        if (swapBtn) swapBtn.style.color = 'var(--accent)';
+      }
+    }
+
+    function highlightPaddle(btn) {
+      if (!btn) return;
+      btn.classList.add('highlight');
+      setTimeout(() => btn.classList.remove('highlight'), 160);
+    }
+
+    function handleLeftClick() {
+      handleTurn(isSwapped ? 1 : -1);
+      highlightPaddle(document.getElementById('paddle-left'));
+    }
+
+    function handleRightClick() {
+      handleTurn(isSwapped ? -1 : 1);
+      highlightPaddle(document.getElementById('paddle-right'));
+    }
+
+    function escapeIframe() {
+      try {
+        window.open(window.location.href, '_top');
+      } catch(e) {
+        window.open(window.location.href, '_blank');
+      }
+    }
+
+    // Check if trapped inside a sandboxed hosting iframe (e.g. Tiiny.host)
+    try {
+      if (window.self !== window.top) {
+        const b = document.getElementById('iframe-warn-banner');
+        if (b) b.style.display = 'block';
+      }
+    } catch(e) {
+      const b = document.getElementById('iframe-warn-banner');
+      if (b) b.style.display = 'block';
+    }
+
+    // --- CRASH-PROOF SINGLE DISPATCH ENGINE (ZERO PREFLIGHT OPTIONS, 180MS THROTTLE) ---
+    let isDispatching = false;
+    let dispatchQueue = null;
+    let lastDispatchTime = 0;
+    let dispatchMode = localStorage.getItem('komote_dispatch_mode') || 'beacon';
+
+    async function dispatchKoreaderEvent(endpoint, label, clickPitch) {
+      if (hapticsOn && navigator.vibrate) {
+        try { navigator.vibrate(12); } catch(e) {}
+      }
+      playClick(clickPitch || 160);
+
+      const now = performance.now();
+      // Guard against overloading Kindle's single-threaded Lua event loop
+      if (isDispatching || (now - lastDispatchTime < 180)) {
+        dispatchQueue = { endpoint, label, clickPitch };
+        return;
+      }
+
+      isDispatching = true;
+      lastDispatchTime = now;
+
+      const ch = cleanHost(host);
+      // Clean URL: NEVER attach query parameters to KOReader endpoints (?_t etc crash KOReader's argument parser!)
+      const url = 'http://' + ch + endpoint;
+      const startTime = performance.now();
+
+      setLog('Sending ' + label + '...', '...');
+      setStatusDot('busy');
+
+      const finishDispatch = (statusOk, durationMs) => {
+        setLog((statusOk ? 'OK · ' : 'Failed · ') + label, durationMs + 'ms');
+        setStatusDot(statusOk ? 'online' : 'offline');
+        setTimeout(() => {
+          isDispatching = false;
+          if (dispatchQueue) {
+            const next = dispatchQueue;
+            dispatchQueue = null;
+            dispatchKoreaderEvent(next.endpoint, next.label, next.clickPitch);
+          }
+        }, 120);
+      };
+
+      if (dispatchMode === 'beacon') {
+        // SAFE IMAGE BEACON (Default, Crash-Proof):
+        // 1. Never sends OPTIONS preflight under Private Network Access
+        // 2. Never throws CORS abort on Kindle socket
+        // 3. Delivers clean single GET directly to KOReader's simpletcpserver
+        try {
+          const img = new Image();
+          window.__retainedBeacons.push(img);
+          if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
+
+          let done = false;
+          const timer = setTimeout(() => {
+            if (!done) {
+              done = true;
+              const ms = Math.round(performance.now() - startTime);
+              finishDispatch(true, ms);
+            }
+          }, 450);
+
+          img.onload = img.onerror = function() {
+            if (!done) {
+              done = true;
+              clearTimeout(timer);
+              const ms = Math.round(performance.now() - startTime);
+              finishDispatch(true, ms);
+            }
+          };
+
+          img.src = url;
+        } catch (err) {
+          const ms = Math.round(performance.now() - startTime);
+          finishDispatch(false, ms);
+        }
+      } else {
+        // Direct Fetch (for localhost or direct proxy)
+        try {
+          await fetch(url, {
+            method: 'GET',
+            mode: 'no-cors',
+            cache: 'no-store'
+          });
+          const ms = Math.round(performance.now() - startTime);
+          finishDispatch(true, ms);
+        } catch (err) {
+          const ms = Math.round(performance.now() - startTime);
+          finishDispatch(false, ms);
+        }
+      }
+    }
+
+    // PAGE TURN HANDLER
+    function handleTurn(direction) {
+      const endpoint = direction > 0 ? '/koreader/event/GotoViewRel/1' : '/koreader/event/GotoViewRel/-1';
+      const label = direction > 0 ? 'Next Page' : 'Prev Page';
+      dispatchKoreaderEvent(endpoint, label, direction > 0 ? 150 : 210);
+      sessionTurns++;
+    }
+
+    function sendSafeAction(endpoint, label, pitch) {
+      if (endpoint === '__auto_toggle__') {
+        toggleAutoTurner();
+        return;
+      }
+      dispatchKoreaderEvent(endpoint, label, pitch);
+      showToast(label + ' Dispatched');
+    }
+
+    // --- TOOLBAR RENDERING (STRICT 4 BUTTONS PER LINE) ---
+    function renderToolbar() {
+      const grid = document.getElementById('toolbar-grid');
+      grid.innerHTML = '';
+
+      STANDARD_BUTTONS.forEach(btn => {
+        if (buttonVisibility[btn.id] !== false) {
+          const b = document.createElement('button');
+          b.className = 'tool-btn';
+          b.onclick = () => sendSafeAction(btn.endpoint, btn.label);
+          b.innerHTML = `
+            <span class="tool-icon">${escapeHtml(btn.icon)}</span>
+            <span>${escapeHtml(btn.label)}</span>
+          `;
+          grid.appendChild(b);
+        }
+      });
+
+      customButtons.forEach((custom, index) => {
+        const b = document.createElement('button');
+        b.className = 'tool-btn custom';
+        b.onclick = () => sendSafeAction(custom.endpoint, custom.label);
+        b.innerHTML = `
+          <span class="tool-icon" style="color: var(--accent);">${escapeHtml(custom.icon || '⚡')}</span>
+          <span>${escapeHtml(custom.label)}</span>
+        `;
+        grid.appendChild(b);
+      });
+    }
+
+    // --- MODAL CONTROLS (POPUP DRAWERS) ---
+    function openSettingsModal() {
+      renderColorSwatches();
+      document.getElementById('settings-modal').classList.add('open');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.remove('open');
+    }
+
+    function openCustomizeModal() {
+      renderCustomizeToggles();
+      renderCustomButtonsList();
+      renderCommandCatalog();
+      document.getElementById('customize-modal').classList.add('open');
+    }
+
+    function closeCustomizeModal() {
+      document.getElementById('customize-modal').classList.remove('open');
+    }
+
+    function openBluetoothModal() {
+      renderBtMappings();
+      document.getElementById('bluetooth-modal').classList.add('open');
+    }
+
+    function closeBluetoothModal() {
+      learningAction = null;
+      hideAddActionDialog();
+      document.getElementById('bluetooth-modal').classList.remove('open');
+    }
+
+    function openApkModal() {
+      document.getElementById('apk-modal').classList.add('open');
+    }
+
+    function closeApkModal() {
+      document.getElementById('apk-modal').classList.remove('open');
+    }
+
+    // --- SCREEN WAKE LOCK ENGINE (KEEPS PHONE SCREEN AWAKE WHILE READING) ---
+    let wakeLock = null;
+    let wakeLockEnabled = localStorage.getItem('komote_wakelock') !== 'false';
+
+    async function requestWakeLock() {
+      if (!wakeLockEnabled) return;
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            wakeLock = null;
+            updateWakeLockUI();
+          });
+          updateWakeLockUI();
+        } catch(err) {
+          console.log('WakeLock not granted:', err);
+        }
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release().then(() => { wakeLock = null; updateWakeLockUI(); });
+      }
+    }
+
+    function toggleWakeLock(enabled) {
+      wakeLockEnabled = enabled;
+      localStorage.setItem('komote_wakelock', enabled);
+      if (enabled) {
+        requestWakeLock();
+        showToast('☕ Keep Screen Awake Enabled');
+      } else {
+        releaseWakeLock();
+        showToast('Screen Sleep Allowed');
+      }
+      updateWakeLockUI();
+    }
+
+    function updateWakeLockUI() {
+      const chk = document.getElementById('chk-wakelock');
+      if (chk) chk.checked = wakeLockEnabled;
+    }
+
+    // Re-acquire wake lock when tab returns to foreground
+    document.addEventListener('visibilitychange', () => {
+      if (wakeLockEnabled && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    });
+
+    // Automatically request wake lock on first user interaction
+    window.addEventListener('click', () => {
+      if (wakeLockEnabled && !wakeLock) {
+        requestWakeLock();
+      }
+    }, { once: true });
+
+    // --- BACKGROUND KEEP-ALIVE AUDIO & MEDIASESSION ---
+    let bgAudioActive = false;
+    let bgAudioOsc = null;
+
+    function toggleBackgroundAudio() {
+      if (bgAudioActive) {
+        stopBackgroundAudio();
+      } else {
+        startBackgroundAudio();
+      }
+    }
+
+    function startBackgroundAudio() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        gain.gain.value = 0.00001; // Inaudible silent carrier
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        bgAudioOsc = osc;
+        bgAudioActive = true;
+
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: 'KOMOTE Remote Bridge',
+            artist: 'Kindle KOReader',
+            album: 'Wireless Page Turner'
+          });
+          navigator.mediaSession.playbackState = 'playing';
+
+          navigator.mediaSession.setActionHandler('nexttrack', () => {
+            handleTurn(isSwapped ? -1 : 1);
+            highlightPaddle(document.getElementById(isSwapped ? 'paddle-left' : 'paddle-right'));
+          });
+          navigator.mediaSession.setActionHandler('previoustrack', () => {
+            handleTurn(isSwapped ? 1 : -1);
+            highlightPaddle(document.getElementById(isSwapped ? 'paddle-right' : 'paddle-left'));
+          });
+          navigator.mediaSession.setActionHandler('play', () => {
+            handleTurn(isSwapped ? -1 : 1);
+          });
+          navigator.mediaSession.setActionHandler('pause', () => {
+            handleTurn(isSwapped ? -1 : 1);
+          });
+        }
+
+        const btn = document.getElementById('btn-bg-audio');
+        if (btn) {
+          btn.innerText = 'Active ✓';
+          btn.style.borderColor = '#10B981';
+          btn.style.color = '#34D399';
+        }
+        showToast('Background Keep-Alive Active');
+      } catch(e) {
+        showToast('Audio keep-alive error');
+      }
+    }
+
+    function stopBackgroundAudio() {
+      if (bgAudioOsc) {
+        try { bgAudioOsc.stop(); } catch(e) {}
+        bgAudioOsc = null;
+      }
+      bgAudioActive = false;
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+      }
+      const btn = document.getElementById('btn-bg-audio');
+      if (btn) {
+        btn.innerText = 'Enable';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+      showToast('Background Keep-Alive Stopped');
+    }
+
+    // Try acquiring wake lock on start
+    requestWakeLock();
+
+    function onOverlayClick(e, modalId) {
+      if (e.target.id === modalId) {
+        document.getElementById(modalId).classList.remove('open');
+      }
+    }
+
+    // --- ADVANCED BLUETOOTH CONTROLLER & GAMEPAD ENGINE ---
+    function formatButtonName(identifier) {
+      if (!identifier) return 'None';
+      if (identifier.startsWith('GP_BTN_')) {
+        const btnIndex = parseInt(identifier.replace('GP_BTN_', ''), 10);
+        return '🎮 ' + (GP_LABELS[btnIndex] || ('Button ' + btnIndex));
+      }
+      if (identifier === 'GP_AXIS_0_POS') return '🎮 Stick / D-Pad Right';
+      if (identifier === 'GP_AXIS_0_NEG') return '🎮 Stick / D-Pad Left';
+      if (identifier === 'GP_AXIS_1_POS') return '🎮 Stick / D-Pad Down';
+      if (identifier === 'GP_AXIS_1_NEG') return '🎮 Stick / D-Pad Up';
+      if (identifier === 'KEY_CODE_96') return '🎮 Gamepad A (✕)';
+      if (identifier === 'KEY_CODE_97') return '🎮 Gamepad B (◯)';
+      if (identifier === 'KEY_CODE_99') return '🎮 Gamepad X (▢)';
+      if (identifier === 'KEY_CODE_100') return '🎮 Gamepad Y (△)';
+      if (identifier === 'KEY_CODE_103') return '🎮 Shoulder R1 (RB)';
+      if (identifier === 'KEY_CODE_102') return '🎮 Shoulder L1 (LB)';
+      if (identifier === 'KEY_CODE_22') return '🎮 D-Pad Right';
+      if (identifier === 'KEY_CODE_20') return '🎮 D-Pad Down';
+      if (identifier === 'KEY_CODE_21') return '🎮 D-Pad Left';
+      if (identifier === 'KEY_CODE_19') return '🎮 D-Pad Up';
+      if (identifier === 'KEY_CODE_25') return '📱 Volume Down';
+      if (identifier === 'KEY_CODE_24') return '📱 Volume Up';
+      if (identifier === 'MOUSE_0') return '🖱️ Mouse Left Click';
+      if (identifier === 'MOUSE_1') return '🖱️ Mouse Middle Click';
+      if (identifier === 'MOUSE_2') return '🖱️ Mouse Right Click';
+      if (identifier.startsWith('MOUSE_')) {
+        return '🖱️ Mouse ' + identifier.replace('MOUSE_', '');
+      }
+      if (identifier.startsWith('KEY_CODE_')) {
+        return '⌨️ Code ' + identifier.replace('KEY_CODE_', '');
+      }
+      if (identifier.startsWith('KEY_')) {
+        return '⌨️ ' + identifier.replace('KEY_', '').replace('Key', '');
+      }
+      return identifier;
+    }
+
+    let learnTimerId = null;
+
+    function renderBtMappings() {
+      const container = document.getElementById('bt-mappings-list');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const actions = Object.keys(btMappings);
+      if (actions.length === 0) {
+        container.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 8px;">No button mappings defined. Tap "+ Add Action" above!</div>`;
+        return;
+      }
+
+      actions.forEach(actionKey => {
+        const meta = ACTION_CATALOG[actionKey] || { name: actionKey, icon: '⚡', endpoint: actionKey };
+        const buttons = btMappings[actionKey] || [];
+        const isListening = learningAction === actionKey;
+
+        const card = document.createElement('div');
+        card.className = 'bt-card';
+        card.innerHTML = `
+          <div class="bt-card-top">
+            <div class="bt-action-label">
+              <span>${meta.icon}</span>
+              <span>${escapeHtml(meta.name)}</span>
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <button class="btn-learn ${isListening ? 'listening' : ''}" onclick="startLearningAction('${actionKey}')" title="${isListening ? 'Tap to cancel learning' : 'Listen for button press'}">
+                ${isListening ? 'Press Button... (Tap to Cancel)' : '🎯 Map Button'}
+              </button>
+              ${isListening ? `<button class="btn-chip" style="height: 26px; padding: 0 6px; color: #F59E0B;" onclick="cancelLearning()" title="Cancel button learning">Cancel</button>` : ''}
+              <button class="btn-chip" style="height: 26px; padding: 0 6px; color: #EF4444;" onclick="deleteActionMapping('${actionKey}')" title="Delete action mapping">
+                ✕
+              </button>
+            </div>
+          </div>
+          <div class="bt-tag-list" style="display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 6px;">
+            ${buttons.length > 0 ? buttons.map((btnId, idx) => `
+              <span class="bt-tag">
+                <span>${escapeHtml(formatButtonName(btnId))}</span>
+                <span style="cursor: pointer; opacity: 0.7; margin-left: 2px;" onclick="removeButtonFromAction('${actionKey}', ${idx})" title="Remove button">✕</span>
+              </span>
+            `).join('') : '<span style="font-size: 10px; color: var(--text-muted);">(No buttons mapped yet)</span>'}
+
+            <select onchange="addQuickButton('${actionKey}', this.value); this.value='';" style="height: 22px; padding: 0 4px; font-size: 10px; font-family: var(--font-mono); border-radius: 6px; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text); cursor: pointer;" title="Pick standard button without waiting for detection">
+              <option value="" disabled selected>+ Pick Key...</option>
+              <option value="KEY_ArrowRight">👉 Arrow Right (Key)</option>
+              <option value="KEY_ArrowDown">👇 Arrow Down (Key)</option>
+              <option value="KEY_ArrowLeft">👈 Arrow Left (Key)</option>
+              <option value="KEY_ArrowUp">👆 Arrow Up (Key)</option>
+              <option value="KEY_Space">␣ Spacebar</option>
+              <option value="KEY_Enter">↵ Enter / Return</option>
+              <option value="KEY_PageDown">📄 Page Down</option>
+              <option value="KEY_PageUp">📄 Page Up</option>
+              <option value="KEY_VolumeDown">🔉 Volume Down (Kindle/TikTok Ring)</option>
+              <option value="KEY_VolumeUp">🔊 Volume Up (Kindle/TikTok Ring)</option>
+              <option value="KEY_MediaPlayPause">⏯️ Media Play/Pause</option>
+              <option value="KEY_MediaTrackNext">⏭️ Media Next Track</option>
+              <option value="GP_BTN_0">🎮 Gamepad A / Cross (Btn 0)</option>
+              <option value="GP_BTN_1">🎮 Gamepad B / Circle (Btn 1)</option>
+              <option value="GP_BTN_2">🎮 Gamepad X / Square (Btn 2)</option>
+              <option value="GP_BTN_3">🎮 Gamepad Y / Triangle (Btn 3)</option>
+              <option value="GP_BTN_4">🎮 Gamepad LB / L1 Shoulder</option>
+              <option value="GP_BTN_5">🎮 Gamepad RB / R1 Shoulder</option>
+              <option value="GP_BTN_15">🎮 Gamepad D-Pad Right</option>
+              <option value="GP_BTN_14">🎮 Gamepad D-Pad Left</option>
+              <option value="GP_BTN_13">🎮 Gamepad D-Pad Down</option>
+              <option value="GP_BTN_12">🎮 Gamepad D-Pad Up</option>
+              <option value="MOUSE_0">🖱️ Mouse Left Click (VR/Air Mouse)</option>
+              <option value="MOUSE_2">🖱️ Mouse Right Click</option>
+            </select>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function addQuickButton(actionKey, buttonId) {
+      if (!buttonId) return;
+      if (!btMappings[actionKey]) btMappings[actionKey] = [];
+      if (!btMappings[actionKey].includes(buttonId)) {
+        btMappings[actionKey].push(buttonId);
+        saveBtMappings();
+        renderBtMappings();
+        showToast('✓ Added ' + formatButtonName(buttonId));
+      }
+    }
+
+    function cancelLearning() {
+      learningAction = null;
+      if (learnTimerId) clearTimeout(learnTimerId);
+      renderBtMappings();
+      const banner = document.getElementById('bt-test-banner');
+      if (banner) banner.innerHTML = `<span>Cancelled learning. Press any button to test.</span>`;
+      showToast('Cancelled learning');
+    }
+
+    function showAddActionDialog() {
+      const p = document.getElementById('add-action-panel');
+      if (p) p.style.display = 'flex';
+    }
+
+    function hideAddActionDialog() {
+      const p = document.getElementById('add-action-panel');
+      if (p) p.style.display = 'none';
+    }
+
+    function confirmAddAction() {
+      const dropdown = document.getElementById('action-select-dropdown');
+      const actionKey = dropdown.value;
+      if (!btMappings[actionKey]) {
+        btMappings[actionKey] = [];
+      }
+      saveBtMappings();
+      hideAddActionDialog();
+      renderBtMappings();
+      startLearningAction(actionKey);
+    }
+
+    function deleteActionMapping(actionKey) {
+      delete btMappings[actionKey];
+      saveBtMappings();
+      renderBtMappings();
+    }
+
+    function removeButtonFromAction(actionKey, buttonIndex) {
+      if (btMappings[actionKey]) {
+        btMappings[actionKey].splice(buttonIndex, 1);
+        saveBtMappings();
+        renderBtMappings();
+      }
+    }
+
+    function startLearningAction(actionKey) {
+      if (learningAction === actionKey) {
+        cancelLearning();
+        return;
+      }
+      learningAction = actionKey;
+      renderBtMappings();
+      const meta = ACTION_CATALOG[actionKey] || { name: actionKey };
+      const banner = document.getElementById('bt-test-banner');
+      if (banner) {
+        banner.innerHTML = `<span style="color: var(--accent); font-weight: 700;">🎯 Press any button on your controller for "${meta.name}" (or tap button again to cancel)...</span>`;
+      }
+      showToast('Press controller button for ' + meta.name);
+
+      if (learnTimerId) clearTimeout(learnTimerId);
+      learnTimerId = setTimeout(() => {
+        if (learningAction === actionKey) {
+          learningAction = null;
+          renderBtMappings();
+          const b = document.getElementById('bt-test-banner');
+          if (b) b.innerHTML = `<span>Learn mode timed out (no button received).</span>`;
+          showToast('Learn mode timed out');
+        }
+      }, 15000);
+    }
+
+    function clearBluetoothMappings() {
+      for (const k in DEFAULT_BT_MAPPINGS) {
+        btMappings[k] = [];
+      }
+      saveBtMappings();
+      renderBtMappings();
+      const banner = document.getElementById('bt-test-banner');
+      if (banner) banner.innerHTML = `<span>All mappings cleared. Tap "🎯 Map Button" to assign.</span>`;
+      showToast('All controller mappings cleared');
+    }
+
+    function saveBtMappings() {
+      localStorage.setItem('komote_custom_bt_mappings_v6', JSON.stringify(btMappings));
+    }
+
+    // --- EXECUTE ACTION BOUND TO CONTROLLER BUTTON / KEY ---
+    function triggerActionByKey(btnIdentifier) {
+      if (!btnIdentifier) return false;
+
+      // Find which action(s) has this button mapped
+      let handled = false;
+      for (const actionKey in btMappings) {
+        const list = btMappings[actionKey] || [];
+        if (list.includes(btnIdentifier) || list.includes(btnIdentifier.replace('KEY_', ''))) {
+          handled = true;
+          executeAction(actionKey, btnIdentifier);
+          break;
+        }
+      }
+      return handled;
+    }
+
+    function triggerActionByCandidates(candidates) {
+      if (!candidates || candidates.length === 0) return false;
+
+      for (const actionKey in btMappings) {
+        const list = btMappings[actionKey] || [];
+        for (const cand of candidates) {
+          if (list.includes(cand) || list.includes(cand.replace('KEY_', '')) || list.includes('KEY_' + cand)) {
+            executeAction(actionKey, cand);
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function executeAction(actionKey, btnIdentifier) {
+      const meta = ACTION_CATALOG[actionKey];
+      const label = meta ? meta.name : actionKey;
+      const formatted = formatButtonName(btnIdentifier);
+
+      const banner = document.getElementById('bt-test-banner');
+      if (banner) {
+        banner.innerHTML = `<span style="color: #10B981; font-weight: 700;">✓ ${formatted} -> ${label}</span>`;
+      }
+
+      if (actionKey === 'nextPage') {
+        handleTurn(isSwapped ? -1 : 1);
+        highlightPaddle(document.getElementById(isSwapped ? 'paddle-left' : 'paddle-right'));
+      } else if (actionKey === 'prevPage') {
+        handleTurn(isSwapped ? 1 : -1);
+        highlightPaddle(document.getElementById(isSwapped ? 'paddle-right' : 'paddle-left'));
+      } else if (actionKey === 'autoToggle') {
+        toggleAutoTurner();
+      } else if (meta && meta.endpoint) {
+        sendSafeAction(meta.endpoint, label);
+      }
+    }
+
+    // --- GAMEPAD API POLLING LOOP (Buttons + D-Pad + Analog Axes) ---
+    const prevGamepadButtons = {};
+    const prevGamepadAxes = {};
+
+    window.addEventListener('gamepadconnected', function(e) {
+      const name = (e.gamepad && e.gamepad.id) ? e.gamepad.id.split('(')[0].trim() : 'Bluetooth Controller';
+      showToast('🎮 ' + name + ' Connected');
+      const nameEl = document.getElementById('bt-connected-name');
+      if (nameEl) nameEl.innerText = '🎮 Connected: ' + name;
+    });
+
+    function pollGamepadsLoop() {
+      try {
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < gamepads.length; i++) {
+          const gp = gamepads[i];
+          if (!gp) continue;
+
+          const nameEl = document.getElementById('bt-connected-name');
+          if (nameEl && (!nameEl.innerText || nameEl.innerText.includes('Listening'))) {
+            nameEl.innerText = '🎮 Connected: ' + (gp.id.split('(')[0].trim() || 'Bluetooth Controller');
+          }
+
+          // 1. Process Buttons
+          if (!prevGamepadButtons[gp.index]) {
+            prevGamepadButtons[gp.index] = [];
+          }
+          for (let b = 0; b < gp.buttons.length; b++) {
+            const btn = gp.buttons[b];
+            const isPressed = typeof btn === 'object' ? btn.pressed : btn > 0.5;
+            const wasPressed = prevGamepadButtons[gp.index][b];
+
+            if (isPressed && !wasPressed) {
+              handleGamepadInput('GP_BTN_' + b);
+            }
+            prevGamepadButtons[gp.index][b] = isPressed;
+          }
+
+          // 2. Process Axes (D-Pads & Thumbsticks)
+          if (!prevGamepadAxes[gp.index]) {
+            prevGamepadAxes[gp.index] = [];
+          }
+          const axesCount = gp.axes ? gp.axes.length : 0;
+          for (let a = 0; a < axesCount; a++) {
+            const val = gp.axes[a];
+            const wasVal = prevGamepadAxes[gp.index][a] || 0;
+
+            if (val > 0.65 && wasVal <= 0.65) {
+              handleGamepadInput(`GP_AXIS_${a}_POS`);
+            } else if (val < -0.65 && wasVal >= -0.65) {
+              handleGamepadInput(`GP_AXIS_${a}_NEG`);
+            }
+            prevGamepadAxes[gp.index][a] = val;
+          }
+        }
+      } catch (err) {
+        // Silently ignore SecurityError on file:///
+      }
+      requestAnimationFrame(pollGamepadsLoop);
+    }
+    requestAnimationFrame(pollGamepadsLoop);
+
+    // Global Pointer / Mouse Click listener for VR wands, air mice, & clickers
+    window.addEventListener('pointerdown', function(e) {
+      if (e.target && (e.target.closest('button') || e.target.closest('select') || e.target.closest('input') || e.target.closest('a') || e.target.closest('.modal-sheet'))) {
+        return;
+      }
+      const mouseId = 'MOUSE_' + e.button;
+      const banner = document.getElementById('bt-test-banner');
+      if (banner && !learningAction) {
+        banner.innerHTML = `<span style="color: #10B981; font-weight: 700;">✓ Received: ${formatButtonName(mouseId)}</span>`;
+      }
+      if (learningAction) {
+        handleGamepadInput(mouseId);
+        return;
+      }
+      triggerActionByKey(mouseId);
+    }, { capture: true });
+
+    function handleGamepadInput(identifier) {
+      // 1. If currently in learn mode: bind this button!
+      if (learningAction) {
+        if (!btMappings[learningAction]) btMappings[learningAction] = [];
+        if (!btMappings[learningAction].includes(identifier)) {
+          btMappings[learningAction].push(identifier);
+        }
+        saveBtMappings();
+        const meta = ACTION_CATALOG[learningAction] || { name: learningAction };
+        showToast(`✓ Mapped ${formatButtonName(identifier)} to ${meta.name}`);
+
+        const banner = document.getElementById('bt-test-banner');
+        if (banner) {
+          banner.innerHTML = `<span style="color: #10B981; font-weight: 700;">✓ Learned ${formatButtonName(identifier)}!</span>`;
+        }
+
+        learningAction = null;
+        renderBtMappings();
+        return;
+      }
+
+      // 2. Normal mode: execute action
+      triggerActionByKey(identifier);
+    }
+
+    // --- STRICT CAPTURE-PHASE KEYBOARD / HID INTERCEPTOR ---
+    function getKeyCandidates(e) {
+      const candidates = [];
+      if (e.code && e.code !== 'Unidentified') {
+        candidates.push('KEY_' + e.code);
+        candidates.push(e.code);
+      }
+      if (e.key && e.key !== 'Unidentified') {
+        candidates.push('KEY_' + e.key);
+        candidates.push(e.key);
+        if (e.key === ' ') {
+          candidates.push('KEY_Space');
+          candidates.push('Space');
+        }
+      }
+      if (e.keyCode && e.keyCode > 0) {
+        candidates.push('KEY_CODE_' + e.keyCode);
+      }
+      return candidates;
+    }
+
+    // Trap keydown in capture phase
+    window.addEventListener('keydown', function(e) {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+        return; // Allow typing in text inputs
+      }
+
+      const candidates = getKeyCandidates(e);
+      if (candidates.length === 0) return;
+      const primaryIdentifier = candidates[0];
+
+      // Update test banner in Controller modal if open
+      const banner = document.getElementById('bt-test-banner');
+      if (banner && !learningAction) {
+        banner.innerHTML = `<span style="color: #10B981; font-weight: 700;">✓ Received: ${e.code || e.key}</span>`;
+      }
+
+      // Check if this key is mapped or is a known navigation/remote key
+      let isMapped = false;
+      for (const act in btMappings) {
+        const list = btMappings[act] || [];
+        if (candidates.some(c => list.includes(c) || list.includes(c.replace('KEY_', '')))) {
+          isMapped = true;
+          break;
+        }
+      }
+
+      const isNavKey = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Space', ' ', 'Enter', 'VolumeDown', 'VolumeUp', 'AudioVolumeDown', 'AudioVolumeUp', 'MediaPlayPause', 'MediaTrackNext', 'MediaTrackPrevious', 'BrowserBack', 'Back', 'Escape', 'Backspace'].includes(e.key) ||
+                       ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Space', 'Enter', 'NumpadEnter'].includes(e.code);
+
+      // ALWAYS prevent default browser scrolling/navigation for controller/remote buttons
+      if (isMapped || isNavKey || learningAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+
+      // 1. If currently in learn mode: bind this key!
+      if (learningAction) {
+        if (!btMappings[learningAction]) btMappings[learningAction] = [];
+        if (!btMappings[learningAction].includes(primaryIdentifier)) {
+          btMappings[learningAction].push(primaryIdentifier);
+        }
+        saveBtMappings();
+        const meta = ACTION_CATALOG[learningAction] || { name: learningAction };
+        showToast(`✓ Mapped ${formatButtonName(primaryIdentifier)} to ${meta.name}`);
+
+        if (banner) {
+          banner.innerHTML = `<span style="color: #10B981; font-weight: 700;">✓ Learned ${formatButtonName(primaryIdentifier)}!</span>`;
+        }
+
+        learningAction = null;
+        renderBtMappings();
+        return;
+      }
+
+      // 2. Normal mode: execute action
+      triggerActionByCandidates(candidates);
+    }, { capture: true, passive: false });
+
+    // Also trap keyup in capture phase to stop sticky browser shortcuts
+    window.addEventListener('keyup', function(e) {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) return;
+      const candidates = getKeyCandidates(e);
+      if (candidates.length > 0) {
+        let isMapped = false;
+        for (const act in btMappings) {
+          const list = btMappings[act] || [];
+          if (candidates.some(c => list.includes(c) || list.includes(c.replace('KEY_', '')))) {
+            isMapped = true;
+            break;
+          }
+        }
+        if (isMapped || learningAction) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    }, { capture: true, passive: false });
+
+    function renderCustomizeToggles() {
+      const container = document.getElementById('standard-toggles-list');
+      container.innerHTML = '';
+
+      STANDARD_BUTTONS.forEach(btn => {
+        const isChecked = buttonVisibility[btn.id] !== false;
+        const row = document.createElement('div');
+        row.className = 'button-toggle-row';
+        row.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 14px; font-weight: 700;">${escapeHtml(btn.icon)}</span>
+            <span>${escapeHtml(btn.label)}</span>
+          </div>
+          <input type="checkbox" class="toggle-checkbox" ${isChecked ? 'checked' : ''} onchange="toggleStandardButton('${btn.id}', this.checked)">
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function toggleStandardButton(id, visible) {
+      buttonVisibility[id] = visible;
+      localStorage.setItem('komote_button_visibility_v8', JSON.stringify(buttonVisibility));
+      renderToolbar();
+    }
+
+    function renderCustomButtonsList() {
+      const container = document.getElementById('custom-buttons-list');
+      container.innerHTML = '';
+
+      if (customButtons.length === 0) {
+        container.innerHTML = `<div style="font-size: 10.5px; color: var(--text-muted); padding: 4px 0;">No custom buttons added yet.</div>`;
+        return;
+      }
+
+      customButtons.forEach((c, idx) => {
+        const row = document.createElement('div');
+        row.className = 'button-toggle-row';
+        row.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+            <span>${escapeHtml(c.icon || '⚡')}</span>
+            <div style="min-width: 0;">
+              <div style="font-size: 11.5px;">${escapeHtml(c.label)}</div>
+              <div style="font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(c.endpoint)}</div>
+            </div>
+          </div>
+          <button class="btn-chip" style="height: 24px; padding: 0 8px; color: #EF4444; border-color: rgba(239,68,68,0.3);" onclick="deleteCustomButton(${idx})">
+            ✕ Delete
+          </button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function renderCommandCatalog() {
+      const container = document.getElementById('command-catalog-list');
+      container.innerHTML = '';
+
+      COMMAND_CATALOG.forEach(item => {
+        const alreadyAdded = customButtons.some(c => c.endpoint === item.endpoint);
+
+        const el = document.createElement('div');
+        el.className = 'catalog-item';
+        el.innerHTML = `
+          <div class="catalog-item-info">
+            <div class="catalog-item-name">
+              <span>${escapeHtml(item.icon)}</span>
+              <span>${escapeHtml(item.label)}</span>
+            </div>
+            <div class="catalog-item-desc">${escapeHtml(item.desc)}</div>
+          </div>
+          <button class="btn-chip" style="height: 26px; padding: 0 10px; font-weight: 700; ${alreadyAdded ? 'opacity: 0.5;' : 'border-color: var(--accent); color: var(--accent);'}" onclick="addFromCatalog('${escapeHtml(item.label)}', '${escapeHtml(item.icon)}', '${escapeHtml(item.endpoint)}')">
+            ${alreadyAdded ? 'Added' : '+ Add'}
+          </button>
+        `;
+        container.appendChild(el);
+      });
+    }
+
+    function addFromCatalog(label, icon, endpoint) {
+      customButtons.push({ label, icon, endpoint });
+      localStorage.setItem('komote_custom_buttons_v8', JSON.stringify(customButtons));
+      renderCustomButtonsList();
+      renderCommandCatalog();
+      renderToolbar();
+      showToast('Added "' + label + '" to KOMOTE');
+    }
+
+    function addCustomButtonManual() {
+      const nameInput = document.getElementById('custom-btn-name');
+      const iconInput = document.getElementById('custom-btn-icon');
+      const epInput = document.getElementById('custom-btn-endpoint');
+
+      const label = nameInput.value.trim();
+      const icon = iconInput.value.trim() || '⚡';
+      let endpoint = epInput.value.trim();
+
+      if (!label || !endpoint) {
+        alert('Please provide a label and an endpoint.');
+        return;
+      }
+
+      if (!endpoint.startsWith('/')) {
+        endpoint = '/' + endpoint;
+      }
+
+      customButtons.push({ label, icon, endpoint });
+      localStorage.setItem('komote_custom_buttons_v8', JSON.stringify(customButtons));
+
+      nameInput.value = '';
+      iconInput.value = '';
+      epInput.value = '';
+
+      renderCustomButtonsList();
+      renderCommandCatalog();
+      renderToolbar();
+      showToast('Added "' + label + '"');
+    }
+
+    function deleteCustomButton(index) {
+      customButtons.splice(index, 1);
+      localStorage.setItem('komote_custom_buttons_v8', JSON.stringify(customButtons));
+      renderCustomButtonsList();
+      renderCommandCatalog();
+      renderToolbar();
+    }
+
+    // --- CONNECTION DIAGNOSTICS & PING ---
+    async function pingKindle() {
+      const btn = document.getElementById('btn-ping');
+      if (btn) btn.innerText = '...';
+      const ch = cleanHost(host);
+      const startTime = performance.now();
+      setStatusDot('busy');
+
+      const pingUrl = 'http://' + ch + '/koreader/event';
+      
+      try {
+        await fetch(pingUrl, {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-store'
+        });
+        const ms = Math.round(performance.now() - startTime);
+        if (btn) btn.innerText = '✓ OK';
+        setStatusDot('online');
+        setLog('Connected to KOReader', ms + 'ms');
+        showToast('✓ Kindle Connected (' + ms + 'ms)');
+        setTimeout(() => { if (btn) btn.innerText = '⚡ Ping'; }, 2000);
+      } catch(e) {
+        const img = new Image();
+        let done = false;
+        const timeout = setTimeout(() => {
+          if (!done) {
+            done = true;
+            if (btn) btn.innerText = '⚡ Ping';
+            setStatusDot('offline');
+            setLog('Kindle unreachable', 'Timeout');
+            showToast('⚠️ Kindle Unreachable on ' + ch);
+          }
+        }, 2500);
+
+        img.onload = img.onerror = function() {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          const ms = Math.round(performance.now() - startTime);
+          if (btn) btn.innerText = '✓ OK';
+          setStatusDot('online');
+          setLog('Connected to KOReader', ms + 'ms');
+          showToast('✓ Kindle Connected (' + ms + 'ms)');
+          setTimeout(() => { if (btn) btn.innerText = '⚡ Ping'; }, 2000);
+        };
+
+        img.src = pingUrl;
+      }
+    }
+
+    function setStatusDot(state) {
+      const dot = document.getElementById('status-dot');
+      dot.className = 'dot ' + (state === 'offline' ? 'offline' : state === 'busy' ? 'busy' : '');
+    }
+
+    // --- CONFIG & HOST PERSISTENCE ---
+    function saveHost() {
+      const val = cleanHost(document.getElementById('host-input').value);
+      if (!val) return;
+      host = val;
+      localStorage.setItem('komote_host', host);
+      document.getElementById('target-pill-text').innerText = host.split(':')[0] || host;
+      document.getElementById('link-events').href = 'http://' + host + '/koreader/event';
+      setLog('Target updated to ' + host);
+      showToast('Kindle IP Saved');
+      pingKindle();
+    }
+
+    function resetDefaultHost() {
+      document.getElementById('host-input').value = '192.168.1.91:8080';
+      saveHost();
+    }
+
+    function setLog(msg, lat) {
+      document.getElementById('last-log').innerText = msg;
+      if (lat !== undefined) {
+        document.getElementById('latency-label').innerText = lat;
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast-el');
+      t.innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+
+    // --- HANDS-FREE AUTO-TURNER ---
+    function updateAutoTurnerLabels() {
+      const text = autoTimer ? 'In ' + autoRemaining + 's' : 'Off';
+      const btnText = autoTimer ? 'Pause' : 'Start';
+      const bg = autoTimer ? '#4B5563' : 'var(--accent)';
+
+      const deckStatus = document.getElementById('deck-auto-status');
+      if (deckStatus) deckStatus.innerText = text;
+      const deckBtn = document.getElementById('btn-deck-auto-toggle');
+      if (deckBtn) {
+        deckBtn.innerText = btnText;
+        deckBtn.style.background = bg;
+      }
+      const deckSec = document.getElementById('deck-auto-seconds');
+      if (deckSec) deckSec.innerText = autoSec + 's';
+    }
+
+    function toggleAutoTurner() {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+        updateAutoTurnerLabels();
+      } else {
+        autoRemaining = autoSec;
+        autoTimer = setInterval(() => {
+          autoRemaining--;
+          if (autoRemaining <= 0) {
+            handleTurn(1);
+            autoRemaining = autoSec;
+          }
+          updateAutoTurnerLabels();
+        }, 1000);
+        updateAutoTurnerLabels();
+      }
+    }
+
+    function adjustAutoTime(delta) {
+      autoSec = Math.max(5, Math.min(300, autoSec + delta));
+      if (!autoTimer) autoRemaining = autoSec;
+      updateAutoTurnerLabels();
+    }
+
+    // Run initial connectivity check
+    setTimeout(pingKindle, 400);
+
+    // --- PWA INSTALL HANDLER ---
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const b = document.getElementById('btn-pwa-install-menu');
+      if (b) {
+        b.innerText = '📲 Install App (Ready!)';
+        b.style.background = '#10B981';
+      }
+    });
+
+    async function triggerPWAInstall() {
+      const hint = document.getElementById('install-hint-box');
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          showToast('✓ KOMOTE Installed to Home Screen!');
+          if (hint) hint.style.display = 'none';
+        }
+        deferredInstallPrompt = null;
+      } else {
+        if (hint) {
+          hint.style.display = 'block';
+          hint.innerHTML = `
+            <strong>💡 How to Install on your Phone:</strong><br>
+            • <strong>If viewing in an In-App Browser preview:</strong><br>
+              Tap the <strong>3 dots (⋮)</strong> at the very top-right of your phone screen, and select <strong>"Open in Chrome"</strong>.<br>
+            • <strong>In Chrome:</strong> Tap the 3 dots (⋮) → <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.<br>
+            • <strong>In Safari (iOS):</strong> Tap the Share button (⬆️) → <strong>"Add to Home Screen"</strong>.
+          `;
+        }
+        showToast('Open in Chrome to install WebAPK');
+      }
+    }
+
+    function copyCurrentUrl() {
+      const url = window.location.href.split('?')[0];
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          showToast('✓ Link copied! Paste into Google Chrome');
+        }).catch(() => {
+          prompt('Copy this link and open in Chrome:', url);
+        });
+      } else {
+        prompt('Copy this link and open in Chrome:', url);
+      }
+    }
+
+    // Register Service Worker for PWA installability with relative path
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW registration error', err));
+      });
+    }
+  </script>
+</body>
+</html>
