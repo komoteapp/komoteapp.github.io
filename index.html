@@ -23,15 +23,15 @@
       --card-hover: #202025;
       --text: #F4F3EF;
       --text-muted: #A1A1AA;
-      --accent: #D9532F;
-      --accent-hover: #C04524;
-      --accent-soft: rgba(217, 83, 47, 0.12);
+      --accent: #71717A;
+      --accent-hover: #52525B;
+      --accent-soft: rgba(113, 113, 122, 0.15);
       --success: #10B981;
       --warning: #F59E0B;
       --paddle-prev: #202025;
       --paddle-prev-border: #323238;
-      --paddle-next: #D9532F;
-      --paddle-next-hover: #C04524;
+      --paddle-next: #71717A;
+      --paddle-next-hover: #52525B;
       --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", serif;
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
       --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -669,18 +669,49 @@
   </style>
 <script src="/_aistudio-iframe.js?v=2c34bde1"></script></head>
 <body>
-  <!-- OLED Battery-Saving Blackout Screen Overlay -->
-  <div id="blackout-overlay" onclick="resetScreenActivity()" ontouchstart="resetScreenActivity()" style="display: none; position: fixed; inset: 0; background: #000000; z-index: 9999; cursor: pointer; flex-direction: column; justify-content: space-between; padding: 24px; user-select: none; -webkit-user-select: none;">
-    <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: #FFFFFF; opacity: 0.15;">
-      <span>● OLED Battery Saver Active</span>
-      <span>WakeLock Active</span>
+  <!-- Zen Mode Fullscreen Reading Overlay (Split screen, swipe down for greyscale buttons, swipe up to exit) -->
+  <div id="zen-overlay" style="display: none; position: fixed; inset: 0; background: #000000; z-index: 9999; flex-direction: column; justify-content: space-between; padding: 24px; user-select: none; -webkit-user-select: none; cursor: pointer;">
+    <!-- Top Tray: Swipe Down Controls (Greyscale, no text, not bright) -->
+    <div id="zen-controls-tray" style="display: none; width: 100%; max-width: 360px; margin: 0 auto; padding: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 10; box-shadow: 0 16px 32px rgba(0,0,0,0.8);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px; margin-bottom: 8px;">
+        <span style="font-size: 10px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.3);">Controls</span>
+        <button onclick="toggleZenControls(false)" style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 12px;">✕</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
+        <button onclick="sendSafeAction('/koreader/event/IncreaseWarmth/1', 'Warmth +')" title="Warmth +" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">🌡️</button>
+        <button onclick="sendSafeAction('/koreader/event/FullRefresh', 'Flash Screen')" title="Flash Screen" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">⚡</button>
+        <button onclick="sendSafeAction('/koreader/event/IncreaseFlIntensity/1', 'Light +')" title="Light +" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">💡</button>
+        <button onclick="sendSafeAction('/koreader/event/DecreaseFlIntensity/1', 'Light -')" title="Light -" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.25); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;">💡</button>
+        <button onclick="sendSafeAction('/koreader/event/IncreaseFontSize/1', 'Font +')" title="Font +" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;">A</button>
+        <button onclick="sendSafeAction('/koreader/event/DecreaseFontSize/1', 'Font -')" title="Font -" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.25); font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;">A</button>
+        <button onclick="sendSafeAction('/koreader/event/ToggleNightMode', 'Night Mode')" title="Night Mode" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">🌙</button>
+        <button onclick="sendSafeAction('/koreader/event/ToggleBookmark', 'Bookmark')" title="Bookmark" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">🔖</button>
+      </div>
     </div>
-    <div style="text-align: center; font-family: var(--font-mono); color: #FFFFFF; opacity: 0.2; pointer-events: none;">
-      <div id="blackout-turns-counter" style="font-size: 36px; font-weight: 700;">0</div>
-      <div style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;">Pages Turned</div>
+    <div id="zen-controls-hint" style="text-align: center; opacity: 0.25; color: #FFFFFF; font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase;" onclick="event.stopPropagation(); toggleZenControls(true);">
+      ⌄ Swipe down for controls
     </div>
-    <div style="text-align: center; font-family: var(--font-mono); font-size: 11px; color: #FFFFFF; opacity: 0.25; pointer-events: none;">
-      Tap screen to wake
+
+    <!-- Subtle Top Divider Line -->
+    <div style="width: 1px; flex: 1; max-height: 30vh; background: rgba(255,255,255,0.15); margin: 0 auto; pointer-events: none;"></div>
+
+    <!-- Center Turn Counter -->
+    <div style="text-align: center; margin: 16px 0; opacity: 0.35; pointer-events: none;">
+      <div id="zen-turns-counter" style="font-family: var(--font-mono); font-size: 40px; font-weight: 700; color: #FFFFFF;">0</div>
+      <div style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.7); margin-top: 4px;">Pages Turned</div>
+      <div style="font-family: var(--font-mono); font-size: 9px; color: rgba(255,255,255,0.4); margin-top: 4px;">Tap left/right to turn</div>
+    </div>
+
+    <!-- Subtle Bottom Divider Line -->
+    <div style="width: 1px; flex: 1; max-height: 30vh; background: rgba(255,255,255,0.15); margin: 0 auto; pointer-events: none;"></div>
+
+    <!-- Bottom Bar: Prev Hint, Swipe Up to Exit, Next Hint -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 16px; font-family: var(--font-mono); z-index: 10;">
+      <div style="opacity: 0.3; color: #FFFFFF; font-size: 13px; font-weight: 600; pointer-events: none;">(← <span id="zen-hint-left">Prev</span></div>
+      <div onclick="event.stopPropagation(); exitZenMode();" style="text-align: center; opacity: 0.6; color: #FFFFFF; font-size: 11px; cursor: pointer; background: rgba(255,255,255,0.06); padding: 6px 16px; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.15);">
+        <div>↑ Swipe up to exit</div>
+      </div>
+      <div style="opacity: 0.3; color: #FFFFFF; font-size: 13px; font-weight: 600; pointer-events: none;"><span id="zen-hint-right">Next</span> →)</div>
     </div>
   </div>
   <!-- Iframe Container Warning Banner (Warns if wrapped by Tiiny.host or proxy frames) -->
@@ -724,6 +755,9 @@
       <button class="btn-chip" onclick="swapPaddles()" id="btn-swap-deck" title="Swap paddle directions">
         🔄 Swap
       </button>
+      <button class="btn-chip" onclick="enterZenMode()" style="border-color: rgba(6, 182, 212, 0.4); color: #06B6D4;" title="Fullscreen black reading mode. Tap left/right to turn. Swipe up to exit.">
+        ✨ Zen Mode
+      </button>
     </div>
   </div>
 
@@ -731,22 +765,14 @@
   <div class="dual-deck layout-50-50" id="dual-deck-container">
     <!-- Left / Top Paddle -->
     <button class="paddle-btn paddle-prev" id="paddle-left" onclick="handleLeftClick()">
-      <span class="paddle-tag" id="tag-left">GotoViewRel/-1</span>
       <div class="paddle-icon" id="icon-left">←</div>
-      <div>
-        <div class="paddle-title" id="title-left">Prev Page</div>
-        <div class="paddle-hint" id="hint-left">Tap Left</div>
-      </div>
+      <div class="paddle-title" id="title-left">Prev</div>
     </button>
 
     <!-- Right / Bottom Paddle -->
     <button class="paddle-btn paddle-next" id="paddle-right" onclick="handleRightClick()">
-      <span class="paddle-tag" id="tag-right">GotoViewRel/1</span>
       <div class="paddle-icon" id="icon-right">→</div>
-      <div>
-        <div class="paddle-title" id="title-right">Next Page</div>
-        <div class="paddle-hint" id="hint-right">Tap Right</div>
-      </div>
+      <div class="paddle-title" id="title-right">Next</div>
     </button>
   </div>
 
@@ -893,11 +919,6 @@
           </div>
 
           <div class="settings-row">
-            <span>Mechanical Switch Click</span>
-            <button class="btn-chip" onclick="toggleAudio()" id="btn-audio-menu">Click: ON</button>
-          </div>
-
-          <div class="settings-row">
             <span>Haptic Vibration</span>
             <button class="btn-chip" onclick="toggleHaptics()" id="btn-vibe-menu">Vibe: ON</button>
           </div>
@@ -919,23 +940,34 @@
             <input type="checkbox" class="toggle-checkbox" id="chk-wakelock" checked onchange="toggleWakeLock(this.checked)">
           </div>
 
-          <!-- OLED Battery Saver Timeout Slider -->
+          <!-- OLED Zen Mode Inactivity Timeout Slider -->
           <div id="blackout-settings-panel" style="margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-size: 11px; font-weight: 700;">🌙 OLED Battery Saver Timeout</span>
+              <span style="font-size: 11px; font-weight: 700; color: #06B6D4;">✨ Auto-Enter Zen Mode Timeout</span>
               <span id="blackout-timeout-label" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent); font-weight: 700;">30s</span>
             </div>
             <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.35;">
-              Fades screen to pure black after inactivity to save battery. Clicking Bluetooth keys turns pages silently without waking screen or making sounds. Touching the phone screen immediately wakes it.
+              Switches to OLED Zen Mode after inactivity. In Zen Mode, swipe down for buttons, swipe up to exit. Set to Never to disable.
             </p>
-            <input type="range" min="5" max="120" step="5" value="30" id="range-blackout-timeout" style="width: 100%; accent-color: var(--accent); cursor: pointer;" oninput="updateBlackoutTimeout(this.value)">
-            <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted); margin-top: 2px;">
-              <span>5s</span>
-              <span onclick="setBlackoutPreset(15)" style="cursor: pointer; text-decoration: underline;">15s</span>
-              <span onclick="setBlackoutPreset(30)" style="cursor: pointer; text-decoration: underline; font-weight: 700; color: var(--accent);">30s (Default)</span>
-              <span onclick="setBlackoutPreset(60)" style="cursor: pointer; text-decoration: underline;">60s</span>
-              <span>120s</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+              <button class="btn-chip" onclick="setZenTimeoutPreset(0)" style="font-size: 9.5px; padding: 2px 8px;">Never</button>
+              <button class="btn-chip" onclick="setZenTimeoutPreset(15)" style="font-size: 9.5px; padding: 2px 8px;">15s</button>
+              <button class="btn-chip" onclick="setZenTimeoutPreset(30)" style="font-size: 9.5px; padding: 2px 8px; font-weight: 700; color: var(--accent);">30s</button>
+              <button class="btn-chip" onclick="setZenTimeoutPreset(60)" style="font-size: 9.5px; padding: 2px 8px;">1m</button>
+              <button class="btn-chip" onclick="setZenTimeoutPreset(120)" style="font-size: 9.5px; padding: 2px 8px;">2m</button>
+              <button class="btn-chip" onclick="setZenTimeoutPreset(300)" style="font-size: 9.5px; padding: 2px 8px;">5m</button>
             </div>
+          </div>
+
+          <!-- Zen Mode Launch Section -->
+          <div style="margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: #06B6D4;">✨ Zen Mode</div>
+              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 2px;">Fullscreen black reading. Swipe down for controls, swipe up to exit.</div>
+            </div>
+            <button class="btn-chip" onclick="closeSettingsModal(); enterZenMode();" style="border-color: #06B6D4; color: #06B6D4; font-weight: 700;">
+              Enter Zen
+            </button>
           </div>
         </div>
 
@@ -1172,17 +1204,17 @@
 
     // --- ACCENT COLOR THEMES ---
     const ACCENT_COLORS = [
+      { name: 'Minimal Charcoal', hex: '#71717A' },
+      { name: 'Slate Gray', hex: '#64748B' },
       { name: 'Flame Orange', hex: '#D9532F' },
       { name: 'Warm Amber', hex: '#D97706' },
       { name: 'Emerald Green', hex: '#059669' },
       { name: 'Ocean Sapphire', hex: '#2563EB' },
       { name: 'Royal Violet', hex: '#7C3AED' },
-      { name: 'Crimson Rose', hex: '#E11D48' },
-      { name: 'Teal Cyan', hex: '#0D9488' },
-      { name: 'Paper Slate', hex: '#475569' }
+      { name: 'Crimson Rose', hex: '#E11D48' }
     ];
 
-    let currentAccent = localStorage.getItem('komote_accent_color') || '#D9532F';
+    let currentAccent = localStorage.getItem('komote_accent_color') || '#71717A';
     let currentLayout = localStorage.getItem('komote_deck_layout') || '50-50';
     let showToolbar = localStorage.getItem('komote_show_toolbar') !== 'false';
     let showAutoTurner = localStorage.getItem('komote_show_autoturner') !== 'false';
@@ -1273,17 +1305,15 @@
       { id: 'btn_font_dec', label: 'Font -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1', defaultVisible: true },
       { id: 'btn_light_inc', label: 'Light +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1', defaultVisible: true },
       { id: 'btn_light_dec', label: 'Light -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1', defaultVisible: true },
+      { id: 'btn_warmth', label: 'Warmth +', icon: '🌡️+', endpoint: '/koreader/event/IncreaseWarmth/1', defaultVisible: true },
       { id: 'btn_refresh', label: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh', defaultVisible: true },
       { id: 'btn_night', label: 'Night Mode', icon: '🌙', endpoint: '/koreader/event/ToggleNightMode', defaultVisible: true },
-      { id: 'btn_bookmark', label: 'Bookmark', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark', defaultVisible: true },
-      { id: 'btn_next_ch', label: 'Next Chapter', icon: '⏭️', endpoint: '/koreader/event/GotoNextChapter', defaultVisible: true },
-      { id: 'btn_prev_ch', label: 'Prev Chapter', icon: '⏮️', endpoint: '/koreader/event/GotoPrevChapter', defaultVisible: false },
-      { id: 'btn_toc', label: 'Contents', icon: '📑', endpoint: '/koreader/event/ShowToc', defaultVisible: false }
+      { id: 'btn_bookmark', label: 'Bookmark', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark', defaultVisible: true }
     ];
 
     const COMMAND_CATALOG = [
-      { label: 'Warmth +', icon: '🌡️+', endpoint: '/koreader/event/IncreaseWarmth/1', desc: 'Increase warm amber light' },
-      { label: 'Warmth -', icon: '🌡️-', endpoint: '/koreader/event/DecreaseWarmth/1', desc: 'Decrease warm amber light' }
+      { label: 'Rotate 90°', icon: '🔄', endpoint: '/koreader/event/RotateScreen/1', desc: 'Rotate orientation clockwise' },
+      { label: 'Screenshot', icon: '📸', endpoint: '/koreader/event/TakeScreenshot', desc: 'Capture Kindle screenshot' }
     ];
 
     let buttonVisibility = {};
@@ -1356,6 +1386,18 @@
         btn.onclick = () => applyAccentColor(c.hex);
         container.appendChild(btn);
       });
+
+      // Custom Color Picker Swatch
+      const customLabel = document.createElement('label');
+      customLabel.className = 'swatch-btn';
+      customLabel.style.background = 'conic-gradient(from 180deg at 50% 50%, #EF4444, #F59E0B, #10B981, #06B6D4, #3B82F6, #8B5CF6, #EF4444)';
+      customLabel.style.cursor = 'pointer';
+      customLabel.style.position = 'relative';
+      customLabel.style.overflow = 'hidden';
+      customLabel.title = 'Choose Custom Color';
+      customLabel.innerHTML = `<span style="font-size: 11px;">🎨</span><input type="color" value="${currentAccent}" style="opacity: 0; position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer;">`;
+      customLabel.querySelector('input').onchange = (e) => applyAccentColor(e.target.value);
+      container.appendChild(customLabel);
     }
 
     // --- SCREEN ELEMENTS VISIBILITY ENGINE ---
@@ -1391,15 +1433,11 @@
         toggleBtn.innerText = '📐 70/30 Stack';
         if (btn70) btn70.classList.add('active');
         if (btn50) btn50.classList.remove('active');
-        document.getElementById('hint-right').innerText = 'Next (70% Tap Zone)';
-        document.getElementById('hint-left').innerText = 'Prev (30% Zone)';
       } else {
         container.className = 'dual-deck layout-50-50';
         toggleBtn.innerText = '📐 50/50 Split';
         if (btn50) btn50.classList.add('active');
         if (btn70) btn70.classList.remove('active');
-        document.getElementById('hint-left').innerText = isSwapped ? 'Tap Left (Next)' : 'Tap Left (Prev)';
-        document.getElementById('hint-right').innerText = isSwapped ? 'Tap Right (Prev)' : 'Tap Right (Next)';
       }
     }
 
@@ -1489,32 +1527,36 @@
       const leftBtn = document.getElementById('paddle-left');
       const rightBtn = document.getElementById('paddle-right');
       const swapBtn = document.getElementById('btn-swap-deck');
+      const iconLeft = document.getElementById('icon-left');
+      const iconRight = document.getElementById('icon-right');
+      const titleLeft = document.getElementById('title-left');
+      const titleRight = document.getElementById('title-right');
+      const zenHintLeft = document.getElementById('zen-hint-left');
+      const zenHintRight = document.getElementById('zen-hint-right');
 
       if (!isSwapped) {
-        leftBtn.className = 'paddle-btn paddle-prev';
-        document.getElementById('tag-left').innerText = 'GotoViewRel/-1';
-        document.getElementById('icon-left').innerText = '←';
-        document.getElementById('title-left').innerText = 'Prev Page';
-        document.getElementById('hint-left').innerText = currentLayout === '70-30' ? 'Prev (30% Zone)' : 'Tap Left (Prev)';
+        if (leftBtn) leftBtn.className = 'paddle-btn paddle-prev';
+        if (iconLeft) iconLeft.innerText = '←';
+        if (titleLeft) titleLeft.innerText = 'Prev';
 
-        rightBtn.className = 'paddle-btn paddle-next';
-        document.getElementById('tag-right').innerText = 'GotoViewRel/1';
-        document.getElementById('icon-right').innerText = '→';
-        document.getElementById('title-right').innerText = 'Next Page';
-        document.getElementById('hint-right').innerText = currentLayout === '70-30' ? 'Next (70% Tap Zone)' : 'Tap Right (Next)';
+        if (rightBtn) rightBtn.className = 'paddle-btn paddle-next';
+        if (iconRight) iconRight.innerText = '→';
+        if (titleRight) titleRight.innerText = 'Next';
+
+        if (zenHintLeft) zenHintLeft.innerText = 'Prev';
+        if (zenHintRight) zenHintRight.innerText = 'Next';
         if (swapBtn) swapBtn.style.color = '';
       } else {
-        leftBtn.className = 'paddle-btn paddle-next';
-        document.getElementById('tag-left').innerText = 'GotoViewRel/1';
-        document.getElementById('icon-left').innerText = '→';
-        document.getElementById('title-left').innerText = 'Next Page';
-        document.getElementById('hint-left').innerText = currentLayout === '70-30' ? 'Next (70% Zone)' : 'Tap Left (Next)';
+        if (leftBtn) leftBtn.className = 'paddle-btn paddle-next';
+        if (iconLeft) iconLeft.innerText = '→';
+        if (titleLeft) titleLeft.innerText = 'Next';
 
-        rightBtn.className = 'paddle-btn paddle-prev';
-        document.getElementById('tag-right').innerText = 'GotoViewRel/-1';
-        document.getElementById('icon-right').innerText = '←';
-        document.getElementById('title-right').innerText = 'Prev Page';
-        document.getElementById('hint-right').innerText = currentLayout === '70-30' ? 'Prev (30% Zone)' : 'Tap Right (Prev)';
+        if (rightBtn) rightBtn.className = 'paddle-btn paddle-prev';
+        if (iconRight) iconRight.innerText = '←';
+        if (titleRight) titleRight.innerText = 'Prev';
+
+        if (zenHintLeft) zenHintLeft.innerText = 'Next';
+        if (zenHintRight) zenHintRight.innerText = 'Prev';
         if (swapBtn) swapBtn.style.color = 'var(--accent)';
       }
     }
@@ -1561,15 +1603,20 @@
     let dispatchMode = localStorage.getItem('komote_dispatch_mode') || 'beacon';
 
     async function dispatchKoreaderEvent(endpoint, label, clickPitch) {
-      if (!isBlackedOut) {
+      if (!isBlackedOut && !isZenMode) {
         if (hapticsOn && navigator.vibrate) {
           try { navigator.vibrate(12); } catch(e) {}
         }
-        playClick(clickPitch || 160);
       } else {
-        blackoutPagesTurned++;
-        const counter = document.getElementById('blackout-turns-counter');
-        if (counter) counter.innerText = blackoutPagesTurned;
+        if (isBlackedOut) {
+          blackoutPagesTurned++;
+          const counter = document.getElementById('blackout-turns-counter');
+          if (counter) counter.innerText = blackoutPagesTurned;
+        }
+        if (isZenMode) {
+          const counter = document.getElementById('zen-turns-counter');
+          if (counter) counter.innerText = sessionTurns + 1;
+        }
       }
 
       const now = performance.now();
@@ -1803,66 +1850,169 @@
       }
     }, { once: true });
 
-    // --- SMART BATTERY-SAVING OLED BLACKOUT ENGINE ---
-    let isBlackedOut = false;
-    let blackoutTimeoutSec = localStorage.getItem('komote_blackout_timeout') !== null 
-      ? parseInt(localStorage.getItem('komote_blackout_timeout'), 10) 
-      : 30; // 30 seconds default
+    // --- SMART BATTERY-SAVING OLED ZEN MODE ENGINE ---
+    let isZenMode = false;
+    let zenControlsVisible = false;
+    let zenTimeoutSec = localStorage.getItem('komote_zen_timeout') !== null 
+      ? parseInt(localStorage.getItem('komote_zen_timeout'), 10) 
+      : 30; // 30 seconds default (0 = Never)
     let lastScreenTouchTime = Date.now();
-    let blackoutPagesTurned = 0;
 
     function resetScreenActivity() {
       lastScreenTouchTime = Date.now();
-      if (isBlackedOut) {
-        isBlackedOut = false;
-        const overlay = document.getElementById('blackout-overlay');
-        if (overlay) overlay.style.display = 'none';
-      }
     }
 
-    function triggerBlackout() {
-      if (!wakeLockEnabled || blackoutTimeoutSec <= 0) return;
-      isBlackedOut = true;
-      const overlay = document.getElementById('blackout-overlay');
+    function enterZenMode() {
+      isZenMode = true;
+      zenControlsVisible = false;
+      const overlay = document.getElementById('zen-overlay');
       if (overlay) {
         overlay.style.display = 'flex';
-        const counter = document.getElementById('blackout-turns-counter');
-        if (counter) counter.innerText = blackoutPagesTurned;
+        const counter = document.getElementById('zen-turns-counter');
+        if (counter) counter.innerText = sessionTurns;
       }
+      toggleZenControls(false);
+      showToast('Zen Mode Active');
     }
 
-    // Inactivity check: timer fades to black after expired timeout
+    function exitZenMode() {
+      isZenMode = false;
+      zenControlsVisible = false;
+      const overlay = document.getElementById('zen-overlay');
+      if (overlay) overlay.style.display = 'none';
+      resetScreenActivity();
+      showToast('Exited Zen Mode');
+    }
+
+    function toggleZenControls(force) {
+      zenControlsVisible = typeof force === 'boolean' ? force : !zenControlsVisible;
+      const tray = document.getElementById('zen-controls-tray');
+      const hint = document.getElementById('zen-controls-hint');
+      if (tray) tray.style.display = zenControlsVisible ? 'block' : 'none';
+      if (hint) hint.style.display = zenControlsVisible ? 'none' : 'block';
+    }
+
+    // Inactivity check: timer switches to Zen Mode after expired timeout
     setInterval(() => {
-      if (wakeLockEnabled && blackoutTimeoutSec > 0 && !isBlackedOut) {
+      if (wakeLockEnabled && zenTimeoutSec > 0 && !isZenMode) {
         const elapsed = (Date.now() - lastScreenTouchTime) / 1000;
-        if (elapsed >= blackoutTimeoutSec) {
-          triggerBlackout();
+        if (elapsed >= zenTimeoutSec) {
+          enterZenMode();
         }
       }
     }, 1000);
 
-    // Screen touches immediately wake the display
-    window.addEventListener('pointerdown', resetScreenActivity, { capture: true, passive: true });
-    window.addEventListener('touchstart', resetScreenActivity, { capture: true, passive: true });
+    // Screen touches on controller deck reset inactivity timer
+    window.addEventListener('pointerdown', (e) => {
+      if (!isZenMode) resetScreenActivity();
+    }, { capture: true, passive: true });
 
-    function updateBlackoutTimeout(val) {
-      blackoutTimeoutSec = parseInt(val, 10);
-      localStorage.setItem('komote_blackout_timeout', blackoutTimeoutSec);
-      const label = document.getElementById('blackout-timeout-label');
-      if (label) label.innerText = blackoutTimeoutSec === 0 ? 'Disabled' : blackoutTimeoutSec + 's';
+    // Zen Mode Swipe Detection & Touch Navigation
+    let zenTouchStartY = null;
+    let zenTouchStartX = null;
+    const zenOverlay = document.getElementById('zen-overlay');
+
+    if (zenOverlay) {
+      zenOverlay.addEventListener('touchstart', (e) => {
+        zenTouchStartY = e.touches[0].clientY;
+        zenTouchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      zenOverlay.addEventListener('touchend', (e) => {
+        if (zenTouchStartY === null) return;
+        const endY = e.changedTouches[0].clientY;
+        const endX = e.changedTouches[0].clientX;
+        const deltaY = endY - zenTouchStartY;
+        const deltaX = Math.abs(endX - (zenTouchStartX || 0));
+        zenTouchStartY = null;
+        zenTouchStartX = null;
+
+        // 1. Swipe Up -> Exit Zen Mode (or close controls if open)
+        if (deltaY < -35 && Math.abs(deltaY) > deltaX * 0.6) {
+          if (zenControlsVisible) {
+            toggleZenControls(false);
+          } else {
+            exitZenMode();
+          }
+          return;
+        }
+
+        // 2. Swipe Down -> Toggle controls tray
+        if (deltaY > 35 && Math.abs(deltaY) > deltaX * 0.6) {
+          toggleZenControls();
+          return;
+        }
+
+        // 3. Tap Screen -> Left = Prev, Right = Next
+        if (Math.abs(deltaY) < 25 && deltaX < 25) {
+          const screenW = window.innerWidth;
+          if (endX < screenW / 2) {
+            handleTurn(isSwapped ? 1 : -1);
+          } else {
+            handleTurn(isSwapped ? -1 : 1);
+          }
+          const counter = document.getElementById('zen-turns-counter');
+          if (counter) counter.innerText = sessionTurns;
+        }
+      }, { passive: true });
+
+      zenOverlay.addEventListener('mousedown', (e) => {
+        zenTouchStartY = e.clientY;
+        zenTouchStartX = e.clientX;
+      });
+
+      zenOverlay.addEventListener('mouseup', (e) => {
+        if (zenTouchStartY === null) return;
+        const deltaY = e.clientY - zenTouchStartY;
+        const deltaX = Math.abs(e.clientX - (zenTouchStartX || 0));
+        zenTouchStartY = null;
+        zenTouchStartX = null;
+
+        if (deltaY < -35 && Math.abs(deltaY) > deltaX * 0.6) {
+          if (zenControlsVisible) {
+            toggleZenControls(false);
+          } else {
+            exitZenMode();
+          }
+          return;
+        }
+
+        if (deltaY > 35 && Math.abs(deltaY) > deltaX * 0.6) {
+          toggleZenControls();
+          return;
+        }
+
+        if (Math.abs(deltaY) < 25 && deltaX < 25) {
+          const screenW = window.innerWidth;
+          if (e.clientX < screenW / 2) {
+            handleTurn(isSwapped ? 1 : -1);
+          } else {
+            handleTurn(isSwapped ? -1 : 1);
+          }
+          const counter = document.getElementById('zen-turns-counter');
+          if (counter) counter.innerText = sessionTurns;
+        }
+      });
     }
 
-    function setBlackoutPreset(sec) {
+    function updateZenTimeout(val) {
+      zenTimeoutSec = parseInt(val, 10);
+      localStorage.setItem('komote_zen_timeout', zenTimeoutSec);
+      const label = document.getElementById('blackout-timeout-label');
+      if (label) label.innerText = zenTimeoutSec === 0 ? 'Never (Disabled)' : zenTimeoutSec + 's';
+    }
+
+    function setZenTimeoutPreset(sec) {
       const slider = document.getElementById('range-blackout-timeout');
       if (slider) slider.value = sec;
-      updateBlackoutTimeout(sec);
+      updateZenTimeout(sec);
     }
 
-    // Initialize blackout settings in UI
+    // Initialize Zen timeout settings in UI
     const initialSlider = document.getElementById('range-blackout-timeout');
-    if (initialSlider) initialSlider.value = blackoutTimeoutSec;
+    if (initialSlider) initialSlider.value = zenTimeoutSec;
     const initialLabel = document.getElementById('blackout-timeout-label');
-    if (initialLabel) initialLabel.innerText = blackoutTimeoutSec === 0 ? 'Disabled' : blackoutTimeoutSec + 's';
+    if (initialLabel) initialLabel.innerText = zenTimeoutSec === 0 ? 'Never (Disabled)' : zenTimeoutSec + 's';
 
     // Try acquiring wake lock on start
     requestWakeLock();
@@ -2128,10 +2278,10 @@
       }
 
       if (actionKey === 'nextPage') {
-        handleTurn(isSwapped ? -1 : 1);
+        handleTurn(1);
         highlightPaddle(document.getElementById(isSwapped ? 'paddle-left' : 'paddle-right'));
       } else if (actionKey === 'prevPage') {
-        handleTurn(isSwapped ? 1 : -1);
+        handleTurn(-1);
         highlightPaddle(document.getElementById(isSwapped ? 'paddle-right' : 'paddle-left'));
       } else if (actionKey === 'autoToggle') {
         toggleAutoTurner();

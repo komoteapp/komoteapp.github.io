@@ -29,12 +29,11 @@ Reading on an e-reader propped up on a stand, reading in bed during cold winter 
 - **Android Accessibility Integration**: Built-in Key Mapper profile generator for system-level background key handling across all apps.
 - **Persistent Key Mappings**: Clean, device-saved configuration stored in local storage for instant reconnects.
 
-### 3. Screen Awake with Smart Battery-Saving OLED Blackout
+### 3. Screen Awake with Smart Battery-Saving OLED Zen Mode
 - **Keep Screen Awake (WakeLock)**: Holds the display awake so your phone never enters OS system sleep while reading.
-- **Customizable Blackout Timeout**: Features a built-in battery saver (default 30 seconds, customizable via slider) that smoothly fades the screen to total black (`#000000`).
-- **OLED Energy Efficiency**: On OLED/AMOLED screens, pure black turns pixels completely off (0 nits, near-zero power draw), letting you read for hours without battery drain.
-- **Silent Night Reading**: When blacked out, Bluetooth controller clicks turn Kindle pages with zero delay while keeping the screen completely dark and silencing haptic vibrations and sound clicks.
-- **Screen Touch Wake**: Touching the phone screen immediately wakes up the display and restores full controls.
+- **Customizable Inactivity Timeout**: Automatically switches to OLED Zen Mode after a period of inactivity (default 30 seconds, customizable via slider and presets, or set to "Never").
+- **OLED Zen Mode**: Fullscreen pure black screen (`#000000`) that turns OLED pixels completely off to save battery. Tapping left or right advances/rewinds pages with haptic feedback, while swiping up smoothly exits back to the full controller.
+- **Bluetooth Remote Harmony**: Bluetooth clickers, rings, and gamepads continue turning pages with instant feedback inside Zen Mode.
 
 ### 4. Full KOReader Control Suite
 - **Font Sizing**: Instant `Font +` and `Font -` adjustments on the fly.
