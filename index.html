@@ -678,14 +678,14 @@
         <button onclick="toggleZenControls(false)" style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 12px;">✕</button>
       </div>
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
-        <button onclick="sendSafeAction('/koreader/event/IncreaseWarmth/1', 'Warmth +')" title="Warmth +" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">🌡️</button>
+        <button onclick="sendSafeAction('/koreader/event/GotoPrevChapter', 'Prev Chapter')" title="Prev Chapter" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">⏮️</button>
+        <button onclick="sendSafeAction('/koreader/event/GotoNextChapter', 'Next Chapter')" title="Next Chapter" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">⏭️</button>
         <button onclick="sendSafeAction('/koreader/event/FullRefresh', 'Flash Screen')" title="Flash Screen" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">⚡</button>
         <button onclick="sendSafeAction('/koreader/event/IncreaseFlIntensity/1', 'Light +')" title="Light +" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">💡</button>
         <button onclick="sendSafeAction('/koreader/event/DecreaseFlIntensity/1', 'Light -')" title="Light -" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.25); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;">💡</button>
         <button onclick="sendSafeAction('/koreader/event/IncreaseFontSize/1', 'Font +')" title="Font +" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;">A</button>
         <button onclick="sendSafeAction('/koreader/event/DecreaseFontSize/1', 'Font -')" title="Font -" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.25); font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;">A</button>
         <button onclick="sendSafeAction('/koreader/event/ToggleNightMode', 'Night Mode')" title="Night Mode" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">🌙</button>
-        <button onclick="sendSafeAction('/koreader/event/ToggleBookmark', 'Bookmark')" title="Bookmark" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">🔖</button>
       </div>
     </div>
     <div id="zen-controls-hint" style="text-align: center; opacity: 0.25; color: #FFFFFF; font-size: 10px; font-family: var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase;" onclick="event.stopPropagation(); toggleZenControls(true);">
@@ -708,7 +708,7 @@
     <!-- Bottom Bar: Prev Hint, Swipe Up to Exit, Next Hint -->
     <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 16px; font-family: var(--font-mono); z-index: 10;">
       <div style="opacity: 0.3; color: #FFFFFF; font-size: 13px; font-weight: 600; pointer-events: none;">(← <span id="zen-hint-left">Prev</span></div>
-      <div onclick="event.stopPropagation(); exitZenMode();" style="text-align: center; opacity: 0.6; color: #FFFFFF; font-size: 11px; cursor: pointer; background: rgba(255,255,255,0.06); padding: 6px 16px; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.15);">
+      <div id="zen-exit-btn" onclick="event.stopPropagation(); exitZenMode();" style="text-align: center; opacity: 0.6; color: #FFFFFF; font-size: 11px; cursor: pointer; background: rgba(255,255,255,0.06); padding: 6px 16px; border-radius: 9999px; border: 1px solid rgba(255,255,255,0.15);">
         <div>↑ Swipe up to exit</div>
       </div>
       <div style="opacity: 0.3; color: #FFFFFF; font-size: 13px; font-weight: 600; pointer-events: none;"><span id="zen-hint-right">Next</span> →)</div>
@@ -1037,8 +1037,6 @@
             <option value="prevPage">📖 Prev Page (Turn Back)</option>
             <option value="lightInc">💡 Light Intensity +</option>
             <option value="lightDec">💡 Light Intensity -</option>
-            <option value="warmthInc">🌡️ Warmth +</option>
-            <option value="warmthDec">🌡️ Warmth -</option>
             <option value="fontInc">🔤 Font Size +</option>
             <option value="fontDec">🔤 Font Size -</option>
             <option value="refresh">⚡ Flash Screen (E-Ink Refresh)</option>
@@ -1177,10 +1175,10 @@
           </p>
           <div style="display: flex; flex-direction: column; gap: 6px;">
             <div style="display: flex; gap: 6px;">
-              <input type="text" class="form-input" id="custom-btn-name" placeholder="Label (e.g. Warmth)" style="flex: 2;">
-              <input type="text" class="form-input" id="custom-btn-icon" placeholder="Icon (e.g. 🌡️)" style="flex: 1;">
+              <input type="text" class="form-input" id="custom-btn-name" placeholder="Label (e.g. Invert)" style="flex: 2;">
+              <input type="text" class="form-input" id="custom-btn-icon" placeholder="Icon (e.g. 🔄)" style="flex: 1;">
             </div>
-            <input type="text" class="form-input" id="custom-btn-endpoint" placeholder="Endpoint (e.g. /koreader/event/IncreaseWarmth/1)">
+            <input type="text" class="form-input" id="custom-btn-endpoint" placeholder="Endpoint (e.g. /koreader/event/RotateScreen/1)">
             <button class="btn-chip" style="background: var(--accent); color: #fff; border: none; font-weight: 700; height: 34px;" onclick="addCustomButtonManual()">
               + Add Button to Toolbar
             </button>
@@ -1246,8 +1244,6 @@
       prevPage: { name: 'Prev Page', icon: '←', endpoint: '/koreader/event/GotoViewRel/-1' },
       lightInc: { name: 'Light Intensity +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1' },
       lightDec: { name: 'Light Intensity -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1' },
-      warmthInc: { name: 'Warmth +', icon: '🌡️+', endpoint: '/koreader/event/IncreaseWarmth/1' },
-      warmthDec: { name: 'Warmth -', icon: '🌡️-', endpoint: '/koreader/event/DecreaseWarmth/1' },
       fontInc: { name: 'Font Size +', icon: 'A+', endpoint: '/koreader/event/IncreaseFontSize/1' },
       fontDec: { name: 'Font Size -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1' },
       refresh: { name: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh' },
@@ -1305,7 +1301,8 @@
       { id: 'btn_font_dec', label: 'Font -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1', defaultVisible: true },
       { id: 'btn_light_inc', label: 'Light +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1', defaultVisible: true },
       { id: 'btn_light_dec', label: 'Light -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1', defaultVisible: true },
-      { id: 'btn_warmth', label: 'Warmth +', icon: '🌡️+', endpoint: '/koreader/event/IncreaseWarmth/1', defaultVisible: true },
+      { id: 'btn_next_ch', label: 'Next Ch.', icon: '⏭️', endpoint: '/koreader/event/GotoNextChapter', defaultVisible: true },
+      { id: 'btn_prev_ch', label: 'Prev Ch.', icon: '⏮️', endpoint: '/koreader/event/GotoPrevChapter', defaultVisible: true },
       { id: 'btn_refresh', label: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh', defaultVisible: true },
       { id: 'btn_night', label: 'Night Mode', icon: '🌙', endpoint: '/koreader/event/ToggleNightMode', defaultVisible: true },
       { id: 'btn_bookmark', label: 'Bookmark', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark', defaultVisible: true }
@@ -1348,7 +1345,11 @@
     window.__retainedBeacons = [];
 
     function cleanHost(h) {
-      return (h || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
+      let cleaned = (h || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
+      if (cleaned && !cleaned.includes(':')) {
+        cleaned = cleaned + ':8080';
+      }
+      return cleaned;
     }
 
     // --- ACCENT THEME ENGINE ---
@@ -1659,7 +1660,6 @@
           const img = new Image();
           window.__retainedBeacons.push(img);
           if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
-
           let done = false;
           const timer = setTimeout(() => {
             if (!done) {
@@ -1668,7 +1668,6 @@
               finishDispatch(true, ms);
             }
           }, 450);
-
           img.onload = img.onerror = function() {
             if (!done) {
               done = true;
@@ -1677,7 +1676,6 @@
               finishDispatch(true, ms);
             }
           };
-
           img.src = url;
         } catch (err) {
           const ms = Math.round(performance.now() - startTime);
@@ -1686,16 +1684,30 @@
       } else {
         // Direct Fetch (for localhost or direct proxy)
         try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
           await fetch(url, {
             method: 'GET',
             mode: 'no-cors',
-            cache: 'no-store'
+            cache: 'no-store',
+            signal: controller.signal
           });
+          clearTimeout(timer);
           const ms = Math.round(performance.now() - startTime);
           finishDispatch(true, ms);
         } catch (err) {
-          const ms = Math.round(performance.now() - startTime);
-          finishDispatch(false, ms);
+          // Auto-fallback to Image Beacon so page still turns on Kindle
+          try {
+            const img = new Image();
+            window.__retainedBeacons.push(img);
+            if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
+            img.src = url;
+            const ms = Math.round(performance.now() - startTime);
+            finishDispatch(true, ms);
+          } catch(e) {
+            const ms = Math.round(performance.now() - startTime);
+            finishDispatch(false, ms);
+          }
         }
       }
     }
@@ -1914,11 +1926,21 @@
 
     if (zenOverlay) {
       zenOverlay.addEventListener('touchstart', (e) => {
+        if (e.target && e.target.closest && e.target.closest('#zen-controls-tray, #zen-controls-hint, #zen-exit-btn')) {
+          zenTouchStartY = null;
+          zenTouchStartX = null;
+          return;
+        }
         zenTouchStartY = e.touches[0].clientY;
         zenTouchStartX = e.touches[0].clientX;
       }, { passive: true });
 
       zenOverlay.addEventListener('touchend', (e) => {
+        if (e.target && e.target.closest && e.target.closest('#zen-controls-tray, #zen-controls-hint, #zen-exit-btn')) {
+          zenTouchStartY = null;
+          zenTouchStartX = null;
+          return;
+        }
         if (zenTouchStartY === null) return;
         const endY = e.changedTouches[0].clientY;
         const endX = e.changedTouches[0].clientX;
@@ -1957,11 +1979,21 @@
       }, { passive: true });
 
       zenOverlay.addEventListener('mousedown', (e) => {
+        if (e.target && e.target.closest && e.target.closest('#zen-controls-tray, #zen-controls-hint, #zen-exit-btn')) {
+          zenTouchStartY = null;
+          zenTouchStartX = null;
+          return;
+        }
         zenTouchStartY = e.clientY;
         zenTouchStartX = e.clientX;
       });
 
       zenOverlay.addEventListener('mouseup', (e) => {
+        if (e.target && e.target.closest && e.target.closest('#zen-controls-tray, #zen-controls-hint, #zen-exit-btn')) {
+          zenTouchStartY = null;
+          zenTouchStartX = null;
+          return;
+        }
         if (zenTouchStartY === null) return;
         const deltaY = e.clientY - zenTouchStartY;
         const deltaX = Math.abs(e.clientX - (zenTouchStartX || 0));
@@ -2629,46 +2661,41 @@
       setStatusDot('busy');
 
       const pingUrl = 'http://' + ch + '/koreader/event';
-      
-      try {
-        await fetch(pingUrl, {
-          method: 'GET',
-          mode: 'no-cors',
-          cache: 'no-store'
-        });
-        const ms = Math.round(performance.now() - startTime);
+
+      const markSuccess = (ms) => {
         if (btn) btn.innerText = '✓ OK';
         setStatusDot('online');
         setLog('Connected to KOReader', ms + 'ms');
         showToast('✓ Kindle Connected (' + ms + 'ms)');
         setTimeout(() => { if (btn) btn.innerText = '⚡ Ping'; }, 2000);
-      } catch(e) {
-        const img = new Image();
-        let done = false;
-        const timeout = setTimeout(() => {
-          if (!done) {
-            done = true;
-            if (btn) btn.innerText = '⚡ Ping';
-            setStatusDot('offline');
-            setLog('Kindle unreachable', 'Timeout');
-            showToast('⚠️ Kindle Unreachable on ' + ch);
-          }
-        }, 2500);
+      };
 
-        img.onload = img.onerror = function() {
-          if (done) return;
+      const markFail = () => {
+        if (btn) btn.innerText = '⚡ Ping';
+        setStatusDot('offline');
+        setLog('Kindle unreachable', 'Timeout');
+        showToast('⚠️ Kindle Unreachable on ' + ch);
+      };
+
+      // Fast Image beacon test: avoids CORS/Private Network preflights and never hangs
+      const img = new Image();
+      let done = false;
+      const timeout = setTimeout(() => {
+        if (!done) {
           done = true;
-          clearTimeout(timeout);
-          const ms = Math.round(performance.now() - startTime);
-          if (btn) btn.innerText = '✓ OK';
-          setStatusDot('online');
-          setLog('Connected to KOReader', ms + 'ms');
-          showToast('✓ Kindle Connected (' + ms + 'ms)');
-          setTimeout(() => { if (btn) btn.innerText = '⚡ Ping'; }, 2000);
-        };
+          markFail();
+        }
+      }, 2500);
 
-        img.src = pingUrl;
-      }
+      img.onload = img.onerror = function() {
+        if (done) return;
+        done = true;
+        clearTimeout(timeout);
+        const ms = Math.round(performance.now() - startTime);
+        markSuccess(ms);
+      };
+
+      img.src = pingUrl;
     }
 
     function setStatusDot(state) {
