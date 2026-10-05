@@ -5,6 +5,8 @@ import {
   RotateCcw,
   Check,
   Sparkles,
+  Bluetooth,
+  Info,
 } from 'lucide-react';
 
 export const GP_BUTTON_LABELS: Record<number, string> = {
@@ -101,8 +103,8 @@ export interface ControllerModalProps {
   lastDetectedInput: string | null;
   connectedGamepadName: string | null;
   kindleHost: string;
-  learningAction: string | null;
-  onSetLearningAction: (action: string | null) => void;
+  learningAction?: string | null;
+  onSetLearningAction?: (action: string | null) => void;
 }
 
 export const ControllerModal: React.FC<ControllerModalProps> = ({
@@ -115,8 +117,8 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
   onShowToast,
   lastDetectedInput,
   connectedGamepadName,
-  learningAction,
-  onSetLearningAction,
+  learningAction = null,
+  onSetLearningAction = () => {},
 }) => {
   const [learnTimer, setLearnTimer] = useState<number>(15);
   const focusTrapRef = useRef<HTMLInputElement>(null);
@@ -220,14 +222,25 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
 
         {/* KEY MAPPING */}
         <div className="py-3 space-y-4 text-xs">
-          {/* Hardware Status */}
-          <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-blue-400 font-semibold text-xs">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse" />
+          {/* Hardware & OS Connection Status */}
+          <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-blue-400 font-semibold text-xs min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shrink-0 animate-pulse" />
+                <span className="truncate">
+                  {connectedGamepadName
+                    ? `🎮 Gamepad Connected: ${connectedGamepadName}`
+                    : '🎮 Controller & Remote Input Active'}
+                </span>
+              </div>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-mono shrink-0">
+                OS Bluetooth
+              </span>
+            </div>
+            <div className="flex items-start gap-1.5 text-[11px] opacity-80 leading-relaxed text-blue-200/90">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
               <span>
-                {connectedGamepadName
-                  ? `🎮 Controller Connected: ${connectedGamepadName}`
-                  : '🎮 Ready: Listening for Bluetooth Controller & Remotes'}
+                Connect your Bluetooth controller, ring, clicker, or remote via your <strong>Windows Bluetooth Settings</strong> or <strong>Android Connected Devices</strong>. KOMOTE receives the button presses directly from your system without needing any in-app pairing!
               </span>
             </div>
           </div>

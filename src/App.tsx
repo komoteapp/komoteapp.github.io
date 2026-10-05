@@ -41,11 +41,6 @@ import { triggerTactileFeedback } from './utils/soundAndHaptics';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { ControllerModal } from './components/ControllerModal';
 import { InstallModal } from './components/InstallModal';
-import {
-  connectWebBluetooth,
-  disconnectWebBluetooth,
-  BLEDeviceState,
-} from './utils/webBluetooth';
 
 interface ActionMeta {
   id: string;
@@ -228,7 +223,6 @@ export default function App() {
   const [learningAction, setLearningAction] = useState<string | null>(null);
   const [lastDetectedKey, setLastDetectedKey] = useState<string | null>(null);
   const [connectedGamepadName, setConnectedGamepadName] = useState<string | null>(null);
-  const [bleState, setBleState] = useState<BLEDeviceState>({ connected: false, name: null, id: null });
 
   const [buttonVisibility, setButtonVisibility] = useState<Record<string, boolean>>(() => {
     try {
@@ -710,31 +704,6 @@ export default function App() {
         else handleNextPage();
       }
     }
-  };
-
-  const handleConnectWebBluetooth = async () => {
-    try {
-      showToast('Opening Bluetooth device chooser...');
-      const name = await connectWebBluetooth(
-        (dir) => {
-          if (dir === 'next') handleNextPage();
-          else handlePrevPage();
-        },
-        (state) => {
-          setBleState(state);
-        }
-      );
-      showToast(`✓ Connected to ${name} via Web Bluetooth`);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Bluetooth pairing failed';
-      showToast(`⚠️ ${msg}`);
-    }
-  };
-
-  const handleDisconnectWebBluetooth = () => {
-    disconnectWebBluetooth();
-    setBleState({ connected: false, name: null, id: null });
-    showToast('Web Bluetooth Disconnected');
   };
 
   // Auto Turner Timer
@@ -1643,14 +1612,14 @@ export default function App() {
           <button
             onClick={() => setActiveModal('controller')}
             className={`h-8 px-2.5 rounded-lg text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
-              bleState.connected
+              connectedGamepadName
                 ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/15 hover:bg-emerald-500/25'
                 : 'border-blue-500/30 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20'
             }`}
-            title="Configure Bluetooth Gamepad, Web Bluetooth & Android Accessibility"
+            title="Configure Bluetooth Gamepad, Remote & Keyboard Controls"
           >
-            {bleState.connected ? <Bluetooth className="w-3.5 h-3.5 text-emerald-400" /> : <Gamepad2 className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{bleState.connected ? 'BLE' : 'Remote'}</span>
+            <Gamepad2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{connectedGamepadName ? 'Gamepad' : 'Remote'}</span>
           </button>
 
           {/* Settings Menu Button */}
@@ -2030,9 +1999,8 @@ export default function App() {
         lastDetectedInput={lastDetectedKey}
         connectedGamepadName={connectedGamepadName}
         kindleHost={host}
-        bleState={bleState}
-        onConnectWebBluetooth={handleConnectWebBluetooth}
-        onDisconnectWebBluetooth={handleDisconnectWebBluetooth}
+        learningAction={learningAction}
+        onSetLearningAction={setLearningAction}
       />
 
       {/* 9. MODAL: SETTINGS & SETUP */}
