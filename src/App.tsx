@@ -293,6 +293,10 @@ export default function App() {
   }, [isZenMode]);
   useEffect(() => {
     localStorage.setItem('komote_theme', isDark ? 'dark' : 'light');
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', isDark ? '#121316' : '#F4F3EF');
+    }
   }, [isDark]);
   useEffect(() => {
     localStorage.setItem('komote_show_toolbar', String(showToolbar));
@@ -1600,7 +1604,7 @@ export default function App() {
 
       {/* 1. TOP HEADER */}
       <header
-        className={`px-4 sm:px-6 py-3 border-b flex items-center justify-between sticky top-0 z-30 backdrop-blur-md ${
+        className={`px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 border-b flex items-center justify-between sticky top-0 z-30 backdrop-blur-md ${
           isDark ? 'bg-[#121316]/90 border-[#27272A]' : 'bg-[#F4F3EF]/90 border-[#DCD9CE]'
         }`}
       >

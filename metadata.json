@@ -1,6 +1,6 @@
 {
-  "name": "KOMOTE — Kindle KOReader Remote",
-  "description": "Tactile wireless page turner and controls for Kindle KOReader.",
+  "name": "Remix Remix Remix Remix Remix Remix Remix Kindle Web Page Turner",
+  "description": "Control your KOReader Kindle pages wirelessly via your phone’s browser using local HTTP requests.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

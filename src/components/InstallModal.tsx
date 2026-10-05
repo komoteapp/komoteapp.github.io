@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Check, Copy, X, QrCode, Wifi, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Smartphone, Check, Copy, X, QrCode, Wifi } from 'lucide-react';
 import QRCode from 'qrcode';
 
 interface InstallModalProps {
@@ -60,7 +60,7 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose, isD
               <h3 className="font-bold text-base sm:text-lg">Install KOMOTE as Native Offline App</h3>
             </div>
             <p className="text-xs opacity-70 mt-0.5">
-              No Netlify or GitHub hosting needed — works 100% offline on your local Wi-Fi!
+              Works 100% offline on your local Wi-Fi without internet.
             </p>
           </div>
           <button
@@ -74,28 +74,6 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose, isD
 
         {/* Content */}
         <div className="py-3 space-y-4 text-xs">
-          {/* Answer Box: Why Netlify is NOT needed */}
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-1.5 text-emerald-400">
-            <div className="font-bold flex items-center gap-2 text-[13px] text-emerald-300">
-              <ShieldCheck className="w-4 h-4" />
-              <span>You Do NOT Need to Host on Netlify or Upload Anywhere!</span>
-            </div>
-            <p className="opacity-90 leading-relaxed text-[11.5px]">
-              KOMOTE is already live right here. When you open this link in Chrome on your phone, Chrome builds and installs an official <strong>Android WebAPK</strong> directly to your home screen. Once loaded, our built-in <strong>Service Worker</strong> caches everything permanently — you can turn off internet completely and it will still work offline over your local Wi-Fi network!
-            </p>
-          </div>
-
-          {/* Explanation of Why opening index.html from zip failed */}
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-1 text-amber-300 text-[11px] leading-relaxed">
-            <div className="font-bold flex items-center gap-1.5 text-amber-200">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Why opening index.html as a file failed & broke Bluetooth:</span>
-            </div>
-            <p className="opacity-85">
-              When you double-click <code className="px-1 py-0.5 rounded bg-black/20 font-mono text-[10px]">index.html</code> from a file manager, Android runs it under a restricted <code className="px-1 py-0.5 rounded bg-black/20 font-mono text-[10px]">file:///</code> sandbox. Android OS strictly blocks installing apps from <code className="px-1 py-0.5 rounded bg-black/20 font-mono text-[10px]">file:///</code> (causing <em>&quot;No directory found after splash screen&quot;</em>) and disables the <strong>Gamepad & Bluetooth API</strong>.
-            </p>
-          </div>
-
           {/* QR Code & Direct URL Box */}
           <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-center gap-4 ${
             isDark ? 'bg-[#121316] border-[#27272A]' : 'bg-[#F4F3EF] border-[#DCD9CE]'
