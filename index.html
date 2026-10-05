@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
     <title>KOMOTE — Kindle KOReader Remote</title>
+    <script>
+      // 1. Ensure trailing slash on GitHub Pages so relative assets (./assets/...) resolve properly
+      (function() {
+        var p = window.location.pathname;
+        if (p && !p.endsWith('/') && !p.split('/').pop().includes('.')) {
+          window.location.replace(p + '/' + window.location.search + window.location.hash);
+        }
+      })();
+
+      // 2. Fallback for unhandled initialization errors (prevents silent blank screen)
+      window.addEventListener('error', function(e) {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0) {
+          root.innerHTML =
+            '<div style="min-height:100vh;background:#121316;color:#F4F3EF;display:flex;align-items:center;justify-content:center;padding:20px;font-family:sans-serif;text-align:center;">' +
+            '<div style="max-width:380px;background:#18181B;border:1px solid #27272A;border-radius:16px;padding:24px;box-shadow:0 10px 25px rgba(0,0,0,0.5);">' +
+            '<div style="font-size:32px;margin-bottom:12px;">📖</div>' +
+            '<h2 style="font-size:18px;font-weight:700;margin:0 0 8px;">KOMOTE Remote</h2>' +
+            '<p style="font-size:12px;color:#A1A1AA;margin:0 0 16px;line-height:1.5;">Initialization issue detected. This usually happens if old browser cache or service worker persists.</p>' +
+            '<button onclick="localStorage.clear();if(\'serviceWorker\' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(x){x.unregister();});location.reload(true);});}else{location.reload(true);}" style="background:#D9532F;color:white;border:none;border-radius:8px;padding:10px 18px;font-weight:600;font-size:13px;cursor:pointer;">Clear Cache & Reload</button>' +
+            '</div></div>';
+        }
+      });
+    </script>
     <meta name="description" content="KOMOTE: Tactile wireless page turner and controls for Kindle KOReader." />
     <meta property="og:title" content="KOMOTE — Kindle KOReader Remote" />
     <meta property="og:description" content="KOMOTE: Tactile wireless page turner and controls for Kindle KOReader." />
@@ -28,7 +52,7 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').catch(() => {});
+          navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
         });
       }
     </script>

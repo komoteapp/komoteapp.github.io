@@ -1,0 +1,8 @@
+{
+  "name": "KOMOTE — Kindle KOReader Remote",
+  "description": "Tactile wireless page turner and controls for Kindle KOReader.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

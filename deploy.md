@@ -6,11 +6,9 @@ This guide walks you through deploying the complete KOMOTE React application to 
 
 ## 🚀 Method 1: Automatic 1-Click Deployment via GitHub Actions (Recommended)
 
-Everything has already been pre-configured for you in `.github/workflows/deploy.yml`. When you push this code to GitHub, GitHub Pages will automatically build and publish your application.
+Everything has already been pre-configured for you in `.github/workflows/deploy.yml`. When you push this code to GitHub, GitHub Pages will automatically configure your repository's base path, build, and publish your application.
 
-### Step 1: Create a GitHub Repository & Push Your Code
-
-If you haven't already pushed this repository to GitHub:
+### Step 1: Push Your Code to GitHub
 
 ```bash
 # Initialize git (if not already done)
@@ -18,10 +16,9 @@ git init
 
 # Add all files
 git add .
-git commit -m "Initial commit of KOMOTE"
+git commit -m "Deploy KOMOTE to GitHub Pages"
 
-# Create a new repository on GitHub (e.g. named 'komote')
-# Link your local repo to GitHub:
+# Link your local repo to your GitHub repository:
 git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/<REPO_NAME>.git
 git branch -M main
 git push -u origin main
@@ -36,13 +33,13 @@ git push -u origin main
 3. In the left sidebar, click **Pages** (under the "Code and automation" section).
 4. Under **Build and deployment**:
    - **Source**: Select **GitHub Actions** from the dropdown menu (instead of "Deploy from a branch").
-5. That's it! GitHub Actions will trigger immediately.
+5. That's it! The workflow will trigger immediately.
 
 ---
 
 ### Step 3: View Your Live App
 
-1. Go to the **Actions** tab in your GitHub repository to watch the deployment build (typically takes ~35 seconds).
+1. Go to the **Actions** tab in your GitHub repository to watch the build (typically takes ~35 seconds).
 2. Once complete, your live site URL will be displayed in the Actions run summary and under **Settings → Pages**:
    ```
    https://<YOUR_GITHUB_USERNAME>.github.io/<REPO_NAME>/
@@ -51,9 +48,30 @@ git push -u origin main
 
 ---
 
-## 📦 Method 2: Manual Build & Deploy (Optional)
+## ⚠️ Blank Page Troubleshooting (Important!)
 
-If you prefer building locally and deploying via the command line:
+If your GitHub Pages deployment shows a blank page, here is why and how it is fixed:
+
+### 1. The Trailing Slash (`/`) Requirement
+When visiting your site on GitHub Pages, the URL **must end with a slash**:
+- ✅ Correct: `https://<username>.github.io/<repo-name>/`
+- ❌ Without slash: `https://<username>.github.io/<repo-name>` (browsers will look for scripts at `https://<username>.github.io/assets/...` instead of inside your repository folder!)
+*Note: KOMOTE now includes an automated redirect script in `index.html` that automatically appends the trailing slash for you.*
+
+### 2. Clear Old Browser / Service Worker Cache
+If you opened the URL before the build finished or on an earlier commit, your browser or Service Worker might have cached the previous 404 or empty response:
+- **On Phone**: Open the link in a **Private / Incognito tab**, or tap the red **"Clear Cache & Reload"** recovery button on screen.
+- **On Desktop**: Press **Ctrl + Shift + R** (Windows/Linux) or **Cmd + Shift + R** (Mac) to bypass cache.
+- In Chrome DevTools: Open **Application → Service Workers** → click **Unregister** and clear Cache Storage.
+
+### 3. Automatic Base Path in GitHub Actions
+Our `.github/workflows/deploy.yml` runs `actions/configure-pages@v5` *before* the build step, automatically injecting the exact repository name (`/${{ steps.pages.outputs.base_path }}/`) so asset paths match your GitHub repository URL 100% of the time.
+
+---
+
+## 📦 Method 2: Manual Build & Deploy (CLI Alternative)
+
+If you prefer building locally and deploying via the `gh-pages` branch:
 
 ```bash
 # 1. Install dependencies
@@ -93,7 +111,7 @@ Then in GitHub **Settings → Pages**, set the source to **Deploy from a branch*
 
 ---
 
-## 🔒 Crucial Network Note: HTTPS & Local Kindle HTTP
+## 🔒 Mixed Content: Allowing Local Kindle HTTP on HTTPS
 
 When hosted on GitHub Pages (`https://`), modern browsers (especially Google Chrome) may block requests from a secure HTTPS website to a local insecure HTTP address on your LAN (`http://192.168.x.x:8080`).
 
@@ -114,7 +132,7 @@ KOMOTE has built-in mechanisms to handle this:
 
 ## 🛠 Included Build Files Summary
 
-- `.github/workflows/deploy.yml` — Automated GitHub Actions workflow to build & deploy on every push.
+- `.github/workflows/deploy.yml` — Automated GitHub Actions workflow with dynamic `actions/configure-pages@v5` base detection.
 - `public/.nojekyll` — Bypasses Jekyll processing so Vite asset bundles load cleanly.
-- `public/404.html` — SPA redirect fallback for GitHub Pages routing.
-- `vite.config.ts` — Relative base configuration (`./`) ensuring all assets and PWA manifests work on any GitHub Pages subfolder path.
+- `public/404.html` — Clean SPA fallback for GitHub Pages routing.
+- `vite.config.ts` — Relative base configuration (`process.env.VITE_BASE_PATH || './'`) ensuring all assets and PWA manifests work on any GitHub Pages subfolder path.

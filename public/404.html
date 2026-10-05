@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>KOMOTE — Kindle KOReader Remote</title>
+    <script>
+      // Single Page App fallback redirect for GitHub Pages
+      var l = window.location;
+      var pathParts = l.pathname.split('/').filter(Boolean);
+      // For GitHub Pages under https://username.github.io/repo-name/
+      var base = l.hostname.endsWith('github.io') && pathParts.length > 0
+        ? '/' + pathParts[0] + '/'
+        : './';
+      l.replace(l.protocol + '//' + l.host + base);
+    </script>
+  </head>
+  <body>
+    <noscript>
+      <meta http-equiv="refresh" content="0; url=./" />
+    </noscript>
+  </body>
+</html>
