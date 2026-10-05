@@ -74,7 +74,7 @@ self.addEventListener('fetch', (event) => {
         }).catch(() => {
           // Fallback to cached index.html or standalone if offline
           if (event.request.mode === 'navigate') {
-            return caches.match('/koreturn-standalone.html') || caches.match('/index.html');
+            return caches.match('./index.html') || caches.match('index.html') || caches.match('/koreturn-standalone.html') || caches.match('/index.html');
           }
         });
       })

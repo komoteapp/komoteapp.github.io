@@ -738,6 +738,26 @@
     </div>
   </div>
 
+  <!-- GitHub Pages / HTTPS Local Access Guidance Banner -->
+  <div id="lna-permission-banner" style="display: none; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); color: #93C5FD; padding: 10px 14px; border-radius: 14px; margin-bottom: 8px; font-size: 11px; line-height: 1.4;">
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div style="font-weight: 700; color: #60A5FA; display: flex; align-items: center; gap: 6px;">
+        <span>🔒 GitHub Pages / HTTPS Local Wi-Fi</span>
+      </div>
+      <div style="display: flex; gap: 4px;">
+        <button onclick="pingKindle()" class="btn-chip" style="background: #3B82F6; color: #FFFFFF; border: none; font-weight: 700; height: 26px; padding: 0 8px; font-size: 10.5px;">
+          ⚡ Test Kindle
+        </button>
+        <button onclick="hideLnaBanner()" class="btn-chip" style="height: 26px; padding: 0 8px; font-size: 10.5px; opacity: 0.8;">
+          ✕ Dismiss
+        </button>
+      </div>
+    </div>
+    <p style="margin-top: 4px; font-size: 10px; opacity: 0.9; line-height: 1.4;">
+      If your Kindle on <strong style="color:#FFFFFF;" id="lna-host-label">192.168.1.91:8080</strong> doesn't respond: Tap 🔒 or the tune icon in your address bar → <strong>Site settings</strong> → set <strong>Insecure content</strong> to <strong>Allow</strong>. Or simply run locally from the ZIP archive!
+    </p>
+  </div>
+
   <!-- Top Navigation Header -->
   <header>
     <div class="wordmark">
@@ -749,9 +769,6 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 6px;">
-      <button class="btn-chip" onclick="downloadDeployZip()" title="Download Full Deployment ZIP" style="border-color: rgba(16, 185, 129, 0.4); color: #34D399; background: rgba(16, 185, 129, 0.1); font-weight: 700;">
-        📥 ZIP
-      </button>
       <button class="btn-chip" onclick="openBluetoothModal()" title="Map Bluetooth Controller / Remote" style="border-color: #3B82F6; color: #60A5FA;">
         🎮 Controller
       </button>
@@ -933,6 +950,15 @@
             <button class="btn-chip" onclick="resetDefaultHost()">Reset</button>
             <button class="btn-chip" onclick="pingKindle()" id="btn-ping" style="border-color: var(--accent); color: var(--accent); font-weight: 700;">
               ⚡ Ping
+            </button>
+          </div>
+          <div style="margin-top: 8px; padding: 8px 10px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: #60A5FA;">🔒 Chrome Local Network Permission</div>
+              <div style="font-size: 9.5px; color: var(--text-muted); margin-top: 1px;">Trigger Chrome permission prompt to connect to local IP</div>
+            </div>
+            <button type="button" class="btn-chip" onclick="requestLocalNetworkPermission()" style="border-color: #3B82F6; color: #93C5FD; font-weight: 700; white-space: nowrap;">
+              Prompt Access ↗
             </button>
           </div>
         </div>
@@ -1131,11 +1157,14 @@
 
       <div class="modal-content-scroll">
         <!-- Controller Status Banner -->
-        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 8px 12px; font-size: 11px; color: #93C5FD; display: flex; align-items: center; justify-content: space-between;" id="bt-status-bar">
-          <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px; padding: 8px 12px; font-size: 11px; color: #93C5FD; display: flex; align-items: center; justify-content: space-between; gap: 8px;" id="bt-status-bar">
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
             <span class="dot" style="background: #3B82F6; box-shadow: 0 0 6px #3B82F6;"></span>
-            <span id="bt-connected-name">Listening for Gamepad & Remote buttons</span>
+            <span id="bt-connected-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Listening for Gamepad & Remote buttons</span>
           </div>
+          <button class="btn-chip" id="btn-web-ble" onclick="toggleWebBluetooth()" style="border-color: #3B82F6; color: #60A5FA; font-weight: 700; height: 26px; font-size: 10px; white-space: nowrap;">
+            🔗 BLE Pair
+          </button>
         </div>
 
         <!-- Live Key Test Indicator -->
@@ -1471,10 +1500,13 @@
 
     function cleanHost(h) {
       let cleaned = (h || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
+      if (cleaned.includes('/')) {
+        cleaned = cleaned.split('/')[0];
+      }
       if (cleaned && !cleaned.includes(':')) {
         cleaned = cleaned + ':8080';
       }
-      return cleaned;
+      return cleaned || '192.168.1.91:8080';
     }
 
     // --- ACCENT THEME ENGINE ---
@@ -1727,7 +1759,7 @@
     let dispatchQueue = null;
     let lastDispatchTime = 0;
     
-    // Default to 'image-beacon': 100% crash-proof, zero preflight, works on GitHub Pages HTTPS & Wi-Fi
+    // Default to 'image-beacon' (Crash-Proof, Zero Preflight, Most reliable for KOReader across Local Wi-Fi & GitHub Pages)
     let transportMode = localStorage.getItem('komote_transport_mode') || localStorage.getItem('komote_dispatch_mode') || 'image-beacon';
     if (!['image-beacon', 'no-cors', 'cors', 'iframe'].includes(transportMode)) {
       transportMode = 'image-beacon';
@@ -1742,7 +1774,7 @@
     }
 
     function cycleTransportMode() {
-      const modes = ['image-beacon', 'no-cors', 'cors', 'iframe'];
+      const modes = ['no-cors', 'image-beacon', 'cors', 'iframe'];
       const nextIdx = (modes.indexOf(transportMode) + 1) % modes.length;
       setTransportMode(modes[nextIdx]);
     }
@@ -1750,7 +1782,7 @@
     function updateTransportModeUI() {
       const pill = document.getElementById('deck-transport-pill');
       if (pill) {
-        pill.innerText = transportMode === 'image-beacon' ? 'BEACON' : transportMode.toUpperCase();
+        pill.innerText = transportMode === 'image-beacon' ? 'BEACON' : transportMode === 'no-cors' ? 'NO-CORS' : transportMode.toUpperCase();
       }
       const badge = document.getElementById('active-protocol-badge');
       if (badge) {
@@ -2627,6 +2659,114 @@
       }
     }
 
+    // --- DIRECT WEB BLUETOOTH LE (GATT) CONNECTION ENGINE ---
+    let bleDevice = null;
+    let bleConnected = false;
+
+    async function toggleWebBluetooth() {
+      if (bleConnected && bleDevice) {
+        try {
+          if (bleDevice.gatt && bleDevice.gatt.connected) {
+            bleDevice.gatt.disconnect();
+          }
+        } catch(e) {}
+        bleConnected = false;
+        bleDevice = null;
+        updateBleUI();
+        showToast('Bluetooth device disconnected');
+        return;
+      }
+
+      if (!navigator.bluetooth) {
+        showToast('Web Bluetooth is supported in Chrome on Android / Mac / PC');
+        return;
+      }
+
+      try {
+        showToast('Scanning for Bluetooth LE rings & remotes...');
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [
+            'generic_access',
+            'battery_service',
+            0x1812, // HID
+            0xffe0, // TikTok ring / selfie clicker
+            0xfff0,
+            0xfee0,
+            0x1800,
+            0x1801
+          ]
+        });
+
+        bleDevice = device;
+        device.addEventListener('gattserverdisconnected', () => {
+          bleConnected = false;
+          bleDevice = null;
+          updateBleUI();
+          showToast('Bluetooth device disconnected');
+        });
+
+        const server = await device.gatt.connect();
+        bleConnected = true;
+        updateBleUI();
+        const name = device.name || 'Bluetooth Remote';
+        showToast('✓ Connected: ' + name);
+
+        // Scan characteristics for notify/indicate
+        try {
+          const services = await server.getPrimaryServices();
+          for (const service of services) {
+            try {
+              const chars = await service.getCharacteristics();
+              for (const ch of chars) {
+                if (ch.properties.notify || ch.properties.indicate) {
+                  await ch.startNotifications();
+                  ch.addEventListener('characteristicvaluechanged', (e) => {
+                    const val = e.target.value;
+                    if (val && val.byteLength > 0) {
+                      const b = val.getUint8(0);
+                      if (b === 2 || b === 0x02 || b === 0x10 || b === 0x20) {
+                        handleTurn(isSwapped ? 1 : -1);
+                      } else {
+                        handleTurn(isSwapped ? -1 : 1);
+                      }
+                    }
+                  });
+                }
+              }
+            } catch(e) {}
+          }
+        } catch(e) {}
+      } catch(err) {
+        if (err.name !== 'NotFoundError') {
+          showToast('BLE: ' + (err.message || 'Cancelled'));
+        }
+      }
+    }
+
+    function updateBleUI() {
+      const btn = document.getElementById('btn-web-ble');
+      const nameEl = document.getElementById('bt-connected-name');
+      if (bleConnected && bleDevice) {
+        const name = bleDevice.name || 'Bluetooth Remote';
+        if (btn) {
+          btn.innerText = 'Disconnect';
+          btn.style.color = '#EF4444';
+          btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        }
+        if (nameEl) nameEl.innerText = '🎮 Connected: ' + name;
+      } else {
+        if (btn) {
+          btn.innerText = '🔗 BLE Pair';
+          btn.style.color = '#60A5FA';
+          btn.style.borderColor = '#3B82F6';
+        }
+        if (nameEl && nameEl.innerText.includes('Connected')) {
+          nameEl.innerText = 'Listening for Gamepad & Remote buttons';
+        }
+      }
+    }
+
     // --- GAMEPAD API POLLING LOOP (Buttons + D-Pad + Analog Axes) ---
     const prevGamepadButtons = {};
     const prevGamepadAxes = {};
@@ -2957,6 +3097,27 @@
       renderToolbar();
     }
 
+    // --- CHROME LOCAL NETWORK ACCESS (LNA) / GITHUB PAGES GUIDANCE ---
+    function checkAndShowLnaBanner() {
+      const banner = document.getElementById('lna-permission-banner');
+      const label = document.getElementById('lna-host-label');
+      if (label) label.innerText = cleanHost(host);
+      // Only show on HTTPS when accessing a private IP address
+      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost')) {
+        if (banner) banner.style.display = 'block';
+      }
+    }
+
+    function hideLnaBanner() {
+      const banner = document.getElementById('lna-permission-banner');
+      if (banner) banner.style.display = 'none';
+    }
+
+    async function requestLocalNetworkPermission() {
+      showToast('Pinging Kindle...');
+      pingKindle();
+    }
+
     // --- CONNECTION DIAGNOSTICS & PING ---
     async function pingKindle() {
       const btn = document.getElementById('btn-ping');
@@ -2972,32 +3133,41 @@
         setStatusDot('online');
         setLog('Connected to KOReader', ms + 'ms');
         showToast('✓ Kindle Connected (' + ms + 'ms)');
+        hideLnaBanner();
         setTimeout(() => { if (btn) btn.innerText = '⚡ Ping'; }, 2000);
       };
 
-      const markFail = () => {
+      const markFail = (errReason) => {
         if (btn) btn.innerText = '⚡ Ping';
         setStatusDot('offline');
         setLog('Kindle unreachable', 'Timeout');
-        showToast('⚠️ Kindle Unreachable on ' + ch);
+        showToast('⚠️ Kindle unreachable on ' + ch + (errReason ? ' (' + errReason + ')' : ''));
+        if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+          checkAndShowLnaBanner();
+        }
       };
 
-      // Fast Image beacon test: avoids CORS/Private Network preflights and never hangs
-      const img = new Image();
       let done = false;
       const timeout = setTimeout(() => {
         if (!done) {
           done = true;
-          markFail();
+          markFail(window.location.protocol === 'https:' ? 'Blocked by HTTPS / Timeout' : 'Timeout');
         }
       }, 2500);
 
+      const img = new Image();
+      window.__retainedBeacons.push(img);
+      if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
+
+      // Note: KOReader HTTP inspector returns text/html, which always triggers img.onerror in web browsers!
+      // In an <img> tag, ANY event (onload or onerror) indicates the Kindle received and responded to the HTTP request.
       img.onload = img.onerror = function() {
-        if (done) return;
-        done = true;
-        clearTimeout(timeout);
-        const ms = Math.round(performance.now() - startTime);
-        markSuccess(ms);
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          const ms = Math.round(performance.now() - startTime);
+          markSuccess(ms);
+        }
       };
 
       img.src = pingUrl;

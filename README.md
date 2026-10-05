@@ -65,6 +65,40 @@ Reading on an e-reader propped up on a stand, reading in bed during cold winter 
 
 ---
 
+## 🚀 Quick Setup & Hosting Options
+
+### Option 1: GitHub Pages (Recommended Free Hosting)
+1. Push all files from this ZIP to a GitHub repository.
+2. In your repo: Go to **Settings** → **Pages** → Source: **Deploy from a branch** (`main` / `/root`) → **Save**.
+3. Open your GitHub Pages link (`https://<username>.github.io/<repo>/`) on your phone or tablet.
+4. **Chrome HTTPS Note**: Since GitHub Pages uses HTTPS, Chrome may block requests to local HTTP IPs by default. To enable:
+   - Tap the 🔒 or tune icon in the Chrome URL bar.
+   - Tap **Site settings**.
+   - Change **Insecure content** to **Allow**.
+   - Your page turns will now connect instantly over local Wi-Fi!
+
+### Option 2: 1-Click Local Server (Windows & Mac/Linux)
+- **Windows**: Double-click `start-windows.bat` to launch on `http://localhost:8088`.
+- **Mac / Linux**: Run `./start-mac-linux.sh` in Terminal to launch on `http://localhost:8088`.
+- This avoids all browser mixed-content restrictions and provides 100% full Web Bluetooth & Gamepad support.
+
+### Option 3: Direct File (Double-Click index.html)
+- Double-click `index.html` directly in Chrome, Firefox, or Safari.
+
+### Option 4: Install to Phone Home Screen (PWA / WebAPK)
+- In Chrome on Android, tap the 3-dot menu (⋮) → **Install app** or **Add to Home screen**.
+- Runs in standalone fullscreen mode like a native Android app!
+
+---
+
+## 📖 Kindle KOReader Wi-Fi Setup
+1. On your Kindle running KOReader, connect to the same Wi-Fi router or phone mobile hotspot.
+2. Open KOReader's top menu → **Tools (cog / wrench)** → **More tools** → **HTTP Inspector**.
+3. Tap **Start server** (KOReader will display: `Server running on http://192.168.x.x:8080`).
+4. In KOMOTE, enter this IP in the Settings menu (default is `192.168.1.91:8080`) and tap **Ping** or turn a page!
+
+---
+
 ## 🌐 Project Access
 
 KOMOTE is accessible on any modern web browser at:

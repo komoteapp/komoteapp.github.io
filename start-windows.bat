@@ -10,25 +10,25 @@ echo.
 
 where python >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    echo Python found! Starting server at http://localhost:8080 ...
-    start http://localhost:8080
-    python -m http.server 8080
+    echo Python found! Starting server at http://localhost:8088 ...
+    start http://localhost:8088
+    python -m http.server 8088
     goto end
 )
 
 where py >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    echo Python found! Starting server at http://localhost:8080 ...
-    start http://localhost:8080
-    py -m http.server 8080
+    echo Python found! Starting server at http://localhost:8088 ...
+    start http://localhost:8088
+    py -m http.server 8088
     goto end
 )
 
 where npx >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    echo Node.js found! Starting server at http://localhost:8080 ...
-    start http://localhost:8080
-    npx serve -l 8080
+    echo Node.js found! Starting server at http://localhost:8088 ...
+    start http://localhost:8088
+    npx serve -l 8088
     goto end
 )
 
