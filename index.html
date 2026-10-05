@@ -739,22 +739,23 @@
   </div>
 
   <!-- GitHub Pages / HTTPS Local Access Guidance Banner -->
-  <div id="lna-permission-banner" style="display: none; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); color: #93C5FD; padding: 10px 14px; border-radius: 14px; margin-bottom: 8px; font-size: 11px; line-height: 1.4;">
+  <div id="lna-permission-banner" style="display: none; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); color: #93C5FD; padding: 12px 14px; border-radius: 14px; margin-bottom: 8px; font-size: 11px; line-height: 1.45;">
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
       <div style="font-weight: 700; color: #60A5FA; display: flex; align-items: center; gap: 6px;">
-        <span>🔒 GitHub Pages / HTTPS Local Wi-Fi</span>
+        <span>🔒 Local Network Permission (Wi-Fi)</span>
       </div>
       <div style="display: flex; gap: 4px;">
-        <button onclick="pingKindle()" class="btn-chip" style="background: #3B82F6; color: #FFFFFF; border: none; font-weight: 700; height: 26px; padding: 0 8px; font-size: 10.5px;">
-          ⚡ Test Kindle
+        <button onclick="requestLocalNetworkPermission()" class="btn-chip" style="background: #3B82F6; color: #FFFFFF; border: none; font-weight: 700; height: 28px; padding: 0 10px; font-size: 11px;">
+          ⚡ Grant Access & Connect
         </button>
-        <button onclick="hideLnaBanner()" class="btn-chip" style="height: 26px; padding: 0 8px; font-size: 10.5px; opacity: 0.8;">
-          ✕ Dismiss
+        <button onclick="hideLnaBanner()" class="btn-chip" style="height: 28px; padding: 0 8px; font-size: 11px; opacity: 0.8;">
+          ✕
         </button>
       </div>
     </div>
-    <p style="margin-top: 4px; font-size: 10px; opacity: 0.9; line-height: 1.4;">
-      If your Kindle on <strong style="color:#FFFFFF;" id="lna-host-label">192.168.1.91:8080</strong> doesn't respond: Tap 🔒 or the tune icon in your address bar → <strong>Site settings</strong> → set <strong>Insecure content</strong> to <strong>Allow</strong>. Or simply run locally from the ZIP archive!
+    <p style="margin-top: 6px; font-size: 10.5px; opacity: 0.95; line-height: 1.45;">
+      Chrome requires your permission to connect to Kindle (<strong style="color:#FFFFFF;" id="lna-host-label">192.168.1.91:8080</strong>) over Wi-Fi.<br>
+      Tap <strong>"Grant Access & Connect"</strong> above and choose <strong>"Allow"</strong> when prompted. Or tap 🔒 in your address bar → <strong>Site settings</strong> → set <strong>Insecure content</strong> to <strong>Allow</strong>.
     </p>
   </div>
 
@@ -945,7 +946,7 @@
             Fixed Kindle Wi-Fi Target (Default: 192.168.1.91:8080)
           </div>
           <div style="display: flex; gap: 6px;">
-            <input type="text" class="form-input" id="host-input" value="192.168.1.91:8080" placeholder="IP:Port" style="flex: 1;" onchange="saveHost()">
+            <input type="text" class="form-input" id="host-input" value="192.168.1.91:8080" placeholder="IP:Port" style="flex: 1;" oninput="saveHostAuto()" onchange="saveHost()">
             <button class="btn-chip" onclick="saveHost()">Save</button>
             <button class="btn-chip" onclick="resetDefaultHost()">Reset</button>
             <button class="btn-chip" onclick="pingKindle()" id="btn-ping" style="border-color: var(--accent); color: var(--accent); font-weight: 700;">
@@ -1620,6 +1621,7 @@
     updateHapticsLabel();
     updatePaddlesUI();
     renderToolbar();
+    updateTransportModeUI();
 
     // --- AUDIO & HAPTICS (100% Offline, Zero External Latency) ---
     let audioCtx = null;
@@ -1900,6 +1902,7 @@
     }
 
     async function dispatchKoreaderEvent(endpoint, label, clickPitch) {
+      if (clickPitch) playClick(clickPitch);
       if (!isBlackedOut && !isZenMode) {
         if (hapticsOn && navigator.vibrate) {
           try { navigator.vibrate(12); } catch(e) {}
@@ -1926,10 +1929,31 @@
       isDispatching = true;
       lastDispatchTime = now;
 
+      const inputEl = document.getElementById('host-input');
+      if (inputEl && inputEl.value.trim()) {
+        host = cleanHost(inputEl.value.trim());
+      }
       const ch = cleanHost(host);
       // Clean URL: NEVER attach query parameters to KOReader endpoints (?_t etc crash KOReader's argument parser!)
       const url = 'http://' + ch + endpoint;
       const startTime = performance.now();
+
+      // When on HTTPS, dispatch a companion fetch with targetAddressSpace to trigger/maintain Chrome LNA permission
+      if (window.location.protocol === 'https:') {
+        try {
+          const isLoopback = ch.includes('localhost') || ch.startsWith('127.');
+          const targetSpace = isLoopback ? 'loopback' : 'local';
+          const ctrl = new AbortController();
+          const tm = setTimeout(() => ctrl.abort(), 2000);
+          fetch(url, {
+            method: 'GET',
+            mode: 'no-cors',
+            cache: 'no-store',
+            signal: ctrl.signal,
+            targetAddressSpace: targetSpace
+          }).then(() => clearTimeout(tm)).catch(() => clearTimeout(tm));
+        } catch(e) {}
+      }
 
       setLog('Sending ' + label + '...', '...');
       setStatusDot('busy');
@@ -1967,7 +1991,13 @@
               done = true;
               clearTimeout(timer);
               const ms = Math.round(performance.now() - startTime);
-              finishDispatch(true, ms);
+              if (window.location.protocol === 'https:' && ms < 20) {
+                checkAndShowLnaBanner();
+                finishDispatch(false, ms);
+                showToast('⚠️ Blocked by HTTPS: Allow Insecure Content in Chrome site settings');
+              } else {
+                finishDispatch(true, ms);
+              }
             }
           };
           img.src = url;
@@ -2099,6 +2129,8 @@
     // --- MODAL CONTROLS (POPUP DRAWERS) ---
     function openSettingsModal() {
       renderColorSwatches();
+      const inputEl = document.getElementById('host-input');
+      if (inputEl) inputEl.value = host;
       document.getElementById('settings-modal').classList.add('open');
     }
 
@@ -3098,14 +3130,41 @@
     }
 
     // --- CHROME LOCAL NETWORK ACCESS (LNA) / GITHUB PAGES GUIDANCE ---
-    function checkAndShowLnaBanner() {
+    async function checkAndShowLnaBanner() {
       const banner = document.getElementById('lna-permission-banner');
       const label = document.getElementById('lna-host-label');
       if (label) label.innerText = cleanHost(host);
-      // Only show on HTTPS when accessing a private IP address
-      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost')) {
-        if (banner) banner.style.display = 'block';
+
+      if (typeof window === 'undefined' || window.location.protocol !== 'https:' || window.location.hostname.includes('localhost')) {
+        if (banner) banner.style.display = 'none';
+        return;
       }
+
+      // Query browser permissions for local network
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const p1 = await navigator.permissions.query({ name: 'local-network' }).catch(() => null);
+          const p2 = p1 || await navigator.permissions.query({ name: 'local-network-access' }).catch(() => null);
+          if (p2) {
+            if (p2.state === 'granted') {
+              if (banner) banner.style.display = 'none';
+              return;
+            }
+            if (banner) banner.style.display = 'block';
+            p2.onchange = () => {
+              if (p2.state === 'granted') {
+                if (banner) banner.style.display = 'none';
+                showToast('✓ Local Network Permission Granted!');
+                pingKindle();
+              }
+            };
+            return;
+          }
+        } catch(e) {}
+      }
+
+      // On HTTPS, show banner so user can grant permission with 1 tap
+      if (banner) banner.style.display = 'block';
     }
 
     function hideLnaBanner() {
@@ -3114,19 +3173,74 @@
     }
 
     async function requestLocalNetworkPermission() {
-      showToast('Pinging Kindle...');
+      const ch = cleanHost(host);
+      showToast('Triggering Chrome Local Network Access prompt...');
+      const isLoopback = ch.includes('localhost') || ch.startsWith('127.');
+      const targetSpace = isLoopback ? 'loopback' : 'local';
+
+      try {
+        // Explicit fetch with targetAddressSpace triggers Chrome 142+ LNA permission dialog on user gesture
+        await fetch('http://' + ch + '/koreader/event', {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-store',
+          targetAddressSpace: targetSpace
+        });
+        showToast('✓ Local network request dispatched');
+        const banner = document.getElementById('lna-permission-banner');
+        if (banner) banner.style.display = 'none';
+      } catch(e) {
+        console.log('LNA request:', e);
+      }
       pingKindle();
+    }
+
+    function saveHostAuto() {
+      const inputEl = document.getElementById('host-input');
+      if (!inputEl) return;
+      const raw = inputEl.value.trim();
+      if (raw) {
+        host = cleanHost(raw);
+        localStorage.setItem('komote_host', host);
+        const pill = document.getElementById('target-pill-text');
+        if (pill) pill.innerText = host.split(':')[0] || host;
+        const link = document.getElementById('link-events');
+        if (link) link.href = 'http://' + host + '/koreader/event';
+        const lnaLabel = document.getElementById('lna-host-label');
+        if (lnaLabel) lnaLabel.innerText = host;
+      }
     }
 
     // --- CONNECTION DIAGNOSTICS & PING ---
     async function pingKindle() {
       const btn = document.getElementById('btn-ping');
       if (btn) btn.innerText = '...';
+      const inputEl = document.getElementById('host-input');
+      if (inputEl && inputEl.value.trim()) {
+        host = cleanHost(inputEl.value.trim());
+      }
       const ch = cleanHost(host);
       const startTime = performance.now();
       setStatusDot('busy');
 
       const pingUrl = 'http://' + ch + '/koreader/event';
+
+      // When on HTTPS, dispatch companion fetch with targetAddressSpace to trigger Chrome's Local Network Access prompt!
+      if (window.location.protocol === 'https:') {
+        try {
+          const isLoopback = ch.includes('localhost') || ch.startsWith('127.');
+          const targetSpace = isLoopback ? 'loopback' : 'local';
+          const ctrl = new AbortController();
+          const tm = setTimeout(() => ctrl.abort(), 1800);
+          fetch(pingUrl, {
+            method: 'GET',
+            mode: 'no-cors',
+            cache: 'no-store',
+            signal: ctrl.signal,
+            targetAddressSpace: targetSpace
+          }).then(() => clearTimeout(tm)).catch(() => clearTimeout(tm));
+        } catch(e) {}
+      }
 
       const markSuccess = (ms) => {
         if (btn) btn.innerText = '✓ OK';
@@ -3159,14 +3273,26 @@
       window.__retainedBeacons.push(img);
       if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
 
-      // Note: KOReader HTTP inspector returns text/html, which always triggers img.onerror in web browsers!
-      // In an <img> tag, ANY event (onload or onerror) indicates the Kindle received and responded to the HTTP request.
-      img.onload = img.onerror = function() {
+      img.onload = function() {
         if (!done) {
           done = true;
           clearTimeout(timeout);
           const ms = Math.round(performance.now() - startTime);
           markSuccess(ms);
+        }
+      };
+
+      img.onerror = function() {
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          const ms = Math.round(performance.now() - startTime);
+          if (window.location.protocol === 'https:' && ms < 25) {
+            markFail('Blocked by HTTPS Mixed Content');
+            checkAndShowLnaBanner();
+          } else {
+            markSuccess(ms);
+          }
         }
       };
 
@@ -3180,19 +3306,26 @@
 
     // --- CONFIG & HOST PERSISTENCE ---
     function saveHost() {
-      const val = cleanHost(document.getElementById('host-input').value);
+      const inputEl = document.getElementById('host-input');
+      const val = cleanHost(inputEl ? inputEl.value : host);
       if (!val) return;
       host = val;
+      if (inputEl) inputEl.value = host;
       localStorage.setItem('komote_host', host);
-      document.getElementById('target-pill-text').innerText = host.split(':')[0] || host;
-      document.getElementById('link-events').href = 'http://' + host + '/koreader/event';
+      const pill = document.getElementById('target-pill-text');
+      if (pill) pill.innerText = host.split(':')[0] || host;
+      const link = document.getElementById('link-events');
+      if (link) link.href = 'http://' + host + '/koreader/event';
+      const lnaLabel = document.getElementById('lna-host-label');
+      if (lnaLabel) lnaLabel.innerText = host;
       setLog('Target updated to ' + host);
-      showToast('Kindle IP Saved');
+      showToast('Kindle IP Saved: ' + host);
       pingKindle();
     }
 
     function resetDefaultHost() {
-      document.getElementById('host-input').value = '192.168.1.91:8080';
+      const inputEl = document.getElementById('host-input');
+      if (inputEl) inputEl.value = '192.168.1.91:8080';
       saveHost();
     }
 
@@ -3301,7 +3434,8 @@
       document.body.removeChild(a);
     }
 
-    // Run initial connectivity check
+    // Run initial connectivity check and Chrome LNA permission check
+    checkAndShowLnaBanner();
     setTimeout(pingKindle, 400);
 
     // --- PWA INSTALL HANDLER ---
