@@ -87,10 +87,19 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
+      {
+        name: 'safe-ws-mock',
+        configureServer(server) {
+          if (!server.ws) {
+            (server as any).ws = { send: () => {}, on: () => {}, close: () => {} };
+          } else if (!server.ws.send) {
+            (server.ws as any).send = () => {};
+          }
+        },
+      },
     ],
     resolve: {
       alias: {

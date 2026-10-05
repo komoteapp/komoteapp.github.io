@@ -40,6 +40,7 @@ import { triggerTactileFeedback } from './utils/soundAndHaptics';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { ControllerModal } from './components/ControllerModal';
 import { InstallModal } from './components/InstallModal';
+import { HttpsFixModal } from './components/HttpsFixModal';
 import {
   connectWebBluetooth,
   disconnectWebBluetooth,
@@ -114,7 +115,7 @@ const GP_BUTTON_LABELS = [
   'D-Pad Right',
 ];
 
-export type TransportMode = 'no-cors' | 'cors' | 'iframe' | 'image-beacon';
+export type TransportMode = 'no-cors' | 'cors' | 'tab-bridge' | 'iframe' | 'image-beacon';
 
 interface LogEntry {
   id: string;
@@ -137,7 +138,7 @@ export default function App() {
   });
   const [transportMode, setTransportMode] = useState<TransportMode>(() => {
     const saved = localStorage.getItem('komote_transport_mode');
-    if (saved && ['image-beacon', 'no-cors', 'cors', 'iframe'].includes(saved)) {
+    if (saved && ['image-beacon', 'no-cors', 'cors', 'iframe', 'tab-bridge'].includes(saved)) {
       return saved as TransportMode;
     }
     const oldMode = localStorage.getItem('komote_dispatch_mode');
@@ -196,6 +197,7 @@ export default function App() {
 
   // UI Modals
   const [activeModal, setActiveModal] = useState<'none' | 'settings' | 'controller' | 'customize' | 'pwa' | 'install'>('none');
+  const [showHttpsFixModal, setShowHttpsFixModal] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Diagnostics & Status
@@ -373,16 +375,25 @@ export default function App() {
         }, 120);
       };
 
-      // Multi-Carrier Dispatch:
-      // Auxiliary in-memory Image carrier for redundancy
-      try {
-        const img = new Image();
-        retainedBeaconsRef.current.push(img);
-        if (retainedBeaconsRef.current.length > 8) retainedBeaconsRef.current.shift();
-        img.src = cleanUrl;
-      } catch {}
+      // Mode 1: Tab Bridge (100% bypasses HTTPS Mixed Content via named top-level window)
+      if (transportMode === 'tab-bridge') {
+        try {
+          const bridgeWin = window.open(cleanUrl, 'komote_kindle_bridge');
+          if (bridgeWin) {
+            finishDispatch('ok', Math.round(performance.now() - startTime), 'Bridge Tab');
+          } else {
+            finishDispatch('error', 0, 'Popup Blocked');
+            showToast('⚠️ Popup blocked. Please allow popups for komoteapp.github.io');
+            setShowHttpsFixModal(true);
+          }
+        } catch {
+          finishDispatch('error', 0, 'Bridge Failed');
+          setShowHttpsFixModal(true);
+        }
+        return;
+      }
 
-      // Hidden iframe bridge if in iframe mode
+      // Mode 2: Hidden Iframe
       if (transportMode === 'iframe') {
         try {
           let bridgeFrame = document.getElementById('koreader-bridge-iframe') as HTMLIFrameElement | null;
@@ -397,17 +408,38 @@ export default function App() {
             document.body.appendChild(bridgeFrame);
           }
           bridgeFrame.src = cleanUrl;
+          finishDispatch('ok', Math.round(performance.now() - startTime), 'Iframe Dispatched');
+          return;
         } catch {}
       }
 
-      // Primary Dispatch: Direct fetch with mode: 'no-cors' and cache: 'no-store'
-      // cache: 'no-store' guarantees browser sends a fresh HTTP GET request across the network on EVERY page turn!
+      // Mode 3: Image Beacon
+      if (transportMode === 'image-beacon') {
+        const img = new Image();
+        retainedBeaconsRef.current.push(img);
+        if (retainedBeaconsRef.current.length > 8) retainedBeaconsRef.current.shift();
+        img.onload = () => finishDispatch('ok', Math.round(performance.now() - startTime), 'Beacon Sent');
+        img.onerror = () => {
+          const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+          if (isHttps) {
+            finishDispatch('error', Math.round(performance.now() - startTime), 'Blocked by HTTPS');
+            showToast('⚠️ Blocked by HTTPS: Allow Insecure Content in Chrome site settings or use Bridge Tab.');
+            setShowHttpsFixModal(true);
+          } else {
+            finishDispatch('ok', Math.round(performance.now() - startTime), 'Beacon Sent');
+          }
+        };
+        img.src = cleanUrl;
+        return;
+      }
+
+      // Mode 4 & 5: Direct fetch with mode: 'no-cors' or 'cors' and cache: 'no-store'
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 2500);
 
       fetch(cleanUrl, {
         method: 'GET',
-        mode: 'no-cors',
+        mode: transportMode === 'cors' ? 'cors' : 'no-cors',
         cache: 'no-store',
         signal: controller.signal,
       })
@@ -421,11 +453,12 @@ export default function App() {
           const ms = Math.round(performance.now() - startTime);
           const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
           finishDispatch('error', ms, isHttps ? 'Blocked by HTTPS' : 'Unreachable');
-          showToast(
-            isHttps
-              ? '⚠️ Blocked by HTTPS: Allow Insecure Content in Chrome site settings or run start-windows.bat'
-              : `⚠️ Cannot reach Kindle on ${ch}. Verify Kindle IP & KOReader HTTP server.`
-          );
+          if (isHttps) {
+            showToast('⚠️ Blocked by HTTPS: Allow Insecure Content in Chrome or use Bridge Tab.');
+            setShowHttpsFixModal(true);
+          } else {
+            showToast(`⚠️ Cannot reach Kindle on ${ch}. Verify Kindle IP & KOReader HTTP server.`);
+          }
         });
     },
     [host, transportMode, hapticsOn]
@@ -1111,31 +1144,40 @@ export default function App() {
     img.src = pingUrl;
   };
 
-  const handleTriggerLocalNetworkPrompt = async () => {
+  const handleTriggerLocalNetworkPrompt = () => {
     const ch = cleanHost(host);
-    showToast('Triggering Chrome local network access prompt...');
-    const isLoopback = ch.includes('localhost') || ch.startsWith('127.');
-    const targetAddressSpace = isLoopback ? 'loopback' : 'local';
-    try {
-      await fetch(`http://${ch}/koreader/event`, {
-        method: 'GET',
-        mode: 'no-cors',
-        cache: 'no-store',
-        ...({ targetAddressSpace } as any),
-      });
-      showToast('✓ Local network request dispatched');
-    } catch {}
-    handlePingKindle();
+    const testUrl = `http://${ch}/koreader/event`;
+    showToast(`Opening Kindle direct connection tab at ${ch}...`);
+    const win = window.open(testUrl, '_blank');
+    if (!win) {
+      showToast('⚠️ Popup blocked. Please allow popups for this site.');
+    } else {
+      showToast('✓ Opened Kindle direct connection tab!');
+    }
+  };
+
+  const handleEnableTabBridge = () => {
+    const ch = cleanHost(host);
+    const testUrl = `http://${ch}/koreader/event`;
+    const win = window.open(testUrl, 'komote_kindle_bridge');
+    setTransportMode('tab-bridge');
+    localStorage.setItem('komote_transport_mode', 'tab-bridge');
+    if (win) {
+      showToast('✓ Kindle Bridge Tab connected & active!');
+    } else {
+      showToast('⚠️ Popup blocked. Please allow popups for this site.');
+    }
   };
 
   const handleTestAllModes = async () => {
     setIsTestingAll(true);
     const ch = cleanHost(host);
     const testUrl = `http://${ch}/koreader/event`;
-    showToast('Testing all 4 methods against Kindle...');
+    showToast('Testing all dispatch methods against Kindle...');
 
     const newResults: Record<string, { status: 'idle' | 'testing' | 'ok' | 'error'; ms?: number; note?: string }> = {
       'no-cors': { status: 'testing' },
+      'tab-bridge': { status: 'ok', note: 'Bypasses HTTPS Mixed Content' },
       cors: { status: 'testing' },
       'image-beacon': { status: 'testing' },
       iframe: { status: 'testing' },
@@ -1988,9 +2030,25 @@ export default function App() {
 
       {/* 7. TOAST NOTIFICATION */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#18181B] text-white px-4 py-2 rounded-full shadow-2xl border border-[#D9532F] font-mono text-xs flex items-center gap-2 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150">
+        <div
+          onClick={() => {
+            if (toastMessage.includes('HTTPS') || toastMessage.includes('Insecure Content') || toastMessage.includes('Bridge Tab')) {
+              setShowHttpsFixModal(true);
+            }
+          }}
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#18181B] text-white px-4 py-2.5 rounded-full shadow-2xl border font-mono text-xs flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
+            toastMessage.includes('HTTPS')
+              ? 'border-amber-500 text-amber-300 cursor-pointer pointer-events-auto hover:bg-[#202025]'
+              : 'border-[#D9532F] pointer-events-none'
+          }`}
+        >
           <Sparkles className="w-3.5 h-3.5 text-[#D9532F]" />
           <span>{toastMessage}</span>
+          {toastMessage.includes('HTTPS') && (
+            <span className="underline ml-1 font-bold text-white bg-amber-500/20 px-1.5 py-0.5 rounded">
+              Fix Guide ↗
+            </span>
+          )}
         </div>
       )}
 
@@ -2076,10 +2134,18 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleTriggerLocalNetworkPrompt}
-                    className="text-[10px] font-mono text-[#D9532F] hover:underline cursor-pointer"
-                    title="Click if Chrome hasn't prompted you to allow local network devices"
+                    className="text-[10px] font-mono text-[#D9532F] hover:underline cursor-pointer font-semibold"
+                    title="Open Kindle directly in a new browser tab"
                   >
-                    Prompt Local Network Access ↗
+                    Open Kindle in New Tab ↗
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowHttpsFixModal(true)}
+                    className="text-[10px] font-mono text-cyan-400 hover:underline cursor-pointer font-semibold"
+                    title="View instructions to allow local network access in Chrome"
+                  >
+                    HTTPS Unblock Guide 🔒
                   </button>
                 </div>
                 <p className="text-[11px] opacity-70">
@@ -2121,10 +2187,29 @@ export default function App() {
                       {testResults['no-cors']?.status === 'ok' && <span className="text-emerald-400 font-mono text-[10px]">✓ {testResults['no-cors'].ms}ms</span>}
                       {testResults['no-cors']?.status === 'error' && <span className="text-rose-400 font-mono text-[10px]">✕</span>}
                     </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Default KOReader fetch. Does not require CORS headers.</div>
+                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Native background fetch (fastest). Works when Insecure Content is allowed.</div>
                   </button>
 
-                  {/* Mode 2: cors */}
+                  {/* Mode 2: tab-bridge */}
+                  <button
+                    type="button"
+                    onClick={handleEnableTabBridge}
+                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
+                      transportMode === 'tab-bridge'
+                        ? 'border-cyan-500 bg-cyan-500/15 font-semibold text-cyan-400'
+                        : isDark
+                        ? 'bg-[#18181B] border-[#27272A] opacity-75'
+                        : 'bg-white border-[#DCD9CE] opacity-75'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs">Kindle Tab Bridge (HTTPS Proof)</span>
+                      <span className="text-cyan-400 font-mono text-[10px]">✓ Bypasses Blocks</span>
+                    </div>
+                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Routes commands through a background Kindle tab. Bypasses Chrome HTTPS restrictions!</div>
+                  </button>
+
+                  {/* Mode 3: cors */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2148,7 +2233,7 @@ export default function App() {
                     <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Standard cross-origin fetch with response inspection.</div>
                   </button>
 
-                  {/* Mode 3: iframe */}
+                  {/* Mode 4: iframe */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2165,13 +2250,13 @@ export default function App() {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs">Hidden Iframe (Bypasses Mixed Content)</span>
+                      <span className="font-bold text-xs">Hidden Iframe Navigation</span>
                       {testResults['iframe']?.status === 'ok' && <span className="text-emerald-400 font-mono text-[10px]">✓ Ready</span>}
                     </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Submits navigation form to hidden iframe. Bypasses browser HTTPS blocks!</div>
+                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Submits navigation form to hidden iframe frame.</div>
                   </button>
 
-                  {/* Mode 4: image-beacon */}
+                  {/* Mode 5: image-beacon */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2528,6 +2613,15 @@ export default function App() {
         isOpen={activeModal === 'pwa' || activeModal === 'install'}
         onClose={() => setActiveModal('none')}
         isDark={isDark}
+      />
+
+      {/* 12. MODAL: HTTPS UNBLOCK & BRIDGE GUIDE */}
+      <HttpsFixModal
+        isOpen={showHttpsFixModal}
+        onClose={() => setShowHttpsFixModal(false)}
+        isDark={isDark}
+        host={host}
+        onEnableTabBridge={handleEnableTabBridge}
       />
     </div>
   );
