@@ -29,11 +29,12 @@ Reading on an e-reader propped up on a stand, reading in bed during cold winter 
 - **Android Accessibility Integration**: Built-in Key Mapper profile generator for system-level background key handling across all apps.
 - **Persistent Key Mappings**: Clean, device-saved configuration stored in local storage for instant reconnects.
 
-### 3. Screen Awake with Smart Battery-Saving OLED Zen Mode
+### 3. Screen Awake with Smart Battery-Saving OLED Blackout
 - **Keep Screen Awake (WakeLock)**: Holds the display awake so your phone never enters OS system sleep while reading.
-- **Customizable Inactivity Timeout**: Automatically switches to OLED Zen Mode after a period of inactivity (default 30 seconds, customizable via slider and presets, or set to "Never").
-- **OLED Zen Mode**: Fullscreen pure black screen (`#000000`) that turns OLED pixels completely off to save battery. Tapping left or right advances/rewinds pages with haptic feedback, while swiping up smoothly exits back to the full controller.
-- **Bluetooth Remote Harmony**: Bluetooth clickers, rings, and gamepads continue turning pages with instant feedback inside Zen Mode.
+- **Customizable Blackout Timeout**: Features a built-in battery saver (default 30 seconds, customizable via slider) that smoothly fades the screen to total black (`#000000`).
+- **OLED Energy Efficiency**: On OLED/AMOLED screens, pure black turns pixels completely off (0 nits, near-zero power draw), letting you read for hours without battery drain.
+- **Silent Night Reading**: When blacked out, Bluetooth controller clicks turn Kindle pages with zero delay while keeping the screen completely dark and silencing haptic vibrations and sound clicks.
+- **Screen Touch Wake**: Touching the phone screen immediately wakes up the display and restores full controls.
 
 ### 4. Full KOReader Control Suite
 - **Font Sizing**: Instant `Font +` and `Font -` adjustments on the fly.
@@ -62,40 +63,6 @@ Reading on an e-reader propped up on a stand, reading in bed during cold winter 
 | **Software Platform** | KOReader (v2020.03+) with HTTP Inspector enabled (`Start server` on port 8080) |
 | **Client Devices** | Android phones/tablets, iPhone, iPad, Mac, Windows, Linux, Chromebooks |
 | **Supported Remotes** | Bluetooth ring page-turners, camera shutter clickers, presentation remotes, 8BitDo Micro/Zero 2, Nintendo Joy-Cons, Xbox/PS gamepads |
-
----
-
-## 🚀 Quick Setup & Hosting Options
-
-### Option 1: GitHub Pages (Recommended Free Hosting)
-1. Push all files from this ZIP to a GitHub repository.
-2. In your repo: Go to **Settings** → **Pages** → Source: **Deploy from a branch** (`main` / `/root`) → **Save**.
-3. Open your GitHub Pages link (`https://<username>.github.io/<repo>/`) on your phone or tablet.
-4. **Chrome HTTPS Note**: Since GitHub Pages uses HTTPS, Chrome may block requests to local HTTP IPs by default. To enable:
-   - Tap the 🔒 or tune icon in the Chrome URL bar.
-   - Tap **Site settings**.
-   - Change **Insecure content** to **Allow**.
-   - Your page turns will now connect instantly over local Wi-Fi!
-
-### Option 2: 1-Click Local Server (Windows & Mac/Linux)
-- **Windows**: Double-click `start-windows.bat` to launch on `http://localhost:8088`.
-- **Mac / Linux**: Run `./start-mac-linux.sh` in Terminal to launch on `http://localhost:8088`.
-- This avoids all browser mixed-content restrictions and provides 100% full Web Bluetooth & Gamepad support.
-
-### Option 3: Direct File (Double-Click index.html)
-- Double-click `index.html` directly in Chrome, Firefox, or Safari.
-
-### Option 4: Install to Phone Home Screen (PWA / WebAPK)
-- In Chrome on Android, tap the 3-dot menu (⋮) → **Install app** or **Add to Home screen**.
-- Runs in standalone fullscreen mode like a native Android app!
-
----
-
-## 📖 Kindle KOReader Wi-Fi Setup
-1. On your Kindle running KOReader, connect to the same Wi-Fi router or phone mobile hotspot.
-2. Open KOReader's top menu → **Tools (cog / wrench)** → **More tools** → **HTTP Inspector**.
-3. Tap **Start server** (KOReader will display: `Server running on http://192.168.x.x:8080`).
-4. In KOMOTE, enter this IP in the Settings menu (default is `192.168.1.91:8080`) and tap **Ping** or turn a page!
 
 ---
 
