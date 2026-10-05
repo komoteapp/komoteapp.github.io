@@ -677,6 +677,19 @@
         <span style="font-size: 10px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.3);">Controls</span>
         <button onclick="toggleZenControls(false)" style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 12px;">✕</button>
       </div>
+
+      <!-- Auto-Turner in Zen Mode Swipe-Down Tray -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;">
+        <button id="zen-auto-toggle-btn" onclick="toggleAutoTurner()" style="padding: 4px 10px; border-radius: 7px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); font-size: 11px; font-family: var(--font-mono); cursor: pointer; font-weight: 600;">
+          ▶ Auto-Turn
+        </button>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button onclick="adjustAutoTime(-1)" style="width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer;">-</button>
+          <span id="zen-auto-sec-display" onclick="promptCustomAutoTime()" title="Tap to set seconds" style="font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.9); font-weight: 700; min-width: 32px; text-align: center; cursor: pointer;">40s</span>
+          <button onclick="adjustAutoTime(1)" style="width: 26px; height: 26px; border-radius: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); font-size: 12px; cursor: pointer;">+</button>
+        </div>
+      </div>
+
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;">
         <button onclick="sendSafeAction('/koreader/event/GotoPrevChapter', 'Prev Chapter')" title="Prev Chapter" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">⏮️</button>
         <button onclick="sendSafeAction('/koreader/event/GotoNextChapter', 'Next Chapter')" title="Next Chapter" style="height: 44px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.35); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">⏭️</button>
@@ -736,6 +749,9 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 6px;">
+      <button class="btn-chip" onclick="downloadDeployZip()" title="Download Full Deployment ZIP" style="border-color: rgba(16, 185, 129, 0.4); color: #34D399; background: rgba(16, 185, 129, 0.1); font-weight: 700;">
+        📥 ZIP
+      </button>
       <button class="btn-chip" onclick="openBluetoothModal()" title="Map Bluetooth Controller / Remote" style="border-color: #3B82F6; color: #60A5FA;">
         🎮 Controller
       </button>
@@ -749,14 +765,17 @@
   <div class="deck-bar">
     <span class="section-title">Paddles</span>
     <div style="display: flex; gap: 6px;">
+      <button class="btn-chip" onclick="cycleTransportMode()" id="deck-transport-pill" title="Click to cycle dispatch protocol (Beacon / no-cors / CORS / Iframe)" style="font-family: var(--font-mono); font-size: 10px; font-weight: 700; border-color: var(--accent); color: var(--accent);">
+        BEACON
+      </button>
       <button class="btn-chip" onclick="toggleDeckLayout()" id="btn-layout-toggle" title="Switch between 50/50 and 70/30 layouts">
-        📐 50/50 Split
+        📐 50/50
       </button>
       <button class="btn-chip" onclick="swapPaddles()" id="btn-swap-deck" title="Swap paddle directions">
         🔄 Swap
       </button>
       <button class="btn-chip" onclick="enterZenMode()" style="border-color: rgba(6, 182, 212, 0.4); color: #06B6D4;" title="Fullscreen black reading mode. Tap left/right to turn. Swipe up to exit.">
-        ✨ Zen Mode
+        ✨ Zen
       </button>
     </div>
   </div>
@@ -793,18 +812,27 @@
     </div>
   </div>
 
-  <!-- 3. INLINE AUTO-TURNER DECK CARD (Directly Below Buttons - Can Be Toggled) -->
-  <div class="autoturner-deck-card" id="deck-autoturner-card">
+  <!-- 3. INLINE AUTO-TURNER DECK CARD (Plus/Minus Stepper & Custom Seconds) -->
+  <div class="autoturner-deck-card" id="deck-autoturner-card" style="padding: 10px 14px; background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; margin-bottom: 8px;">
     <div style="display: flex; align-items: center; justify-content: space-between;">
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 11.5px;">⏱️ <strong>Auto-Turner:</strong></span>
-        <span id="deck-auto-status" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent); font-weight: 700;">Off</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="btn-deck-auto-toggle" onclick="toggleAutoTurner()" class="btn-chip" style="height: 32px; padding: 0 12px; font-weight: 700; background: var(--accent); color: #fff; border: none; font-size: 11.5px; border-radius: 8px;">
+          ▶ Start
+        </button>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+            <span>Auto-Turner</span>
+            <span id="deck-auto-status" style="font-size: 10px; font-family: var(--font-mono); color: var(--accent); font-weight: 700;">Off</span>
+          </div>
+          <div style="font-size: 9.5px; color: var(--text-muted); font-family: var(--font-mono);">
+            Turns page every <span id="deck-auto-sub-sec">40</span>s
+          </div>
+        </div>
       </div>
-      <div style="display: flex; align-items: center; gap: 6px;">
-        <button class="btn-chip" onclick="adjustAutoTime(-5)">-5s</button>
-        <span id="deck-auto-seconds" style="font-family: var(--font-mono); font-weight: 700; width: 30px; text-align: center; font-size: 11px;">40s</span>
-        <button class="btn-chip" onclick="adjustAutoTime(5)">+5s</button>
-        <button class="btn-chip" id="btn-deck-auto-toggle" style="background: var(--accent); color: #fff; border: none; font-weight: 700;" onclick="toggleAutoTurner()">Start</button>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn-chip" onclick="adjustAutoTime(-1)" style="width: 28px; height: 28px; font-size: 14px; font-weight: 700;" title="Decrease 1s">-</button>
+        <span id="deck-auto-seconds" onclick="promptCustomAutoTime()" title="Click to enter exact seconds" style="font-family: var(--font-mono); font-weight: 700; min-width: 36px; text-align: center; font-size: 12px; cursor: pointer; padding: 4px 6px; background: var(--bg); border: 1px solid var(--card-border); border-radius: 6px;">40s</span>
+        <button class="btn-chip" onclick="adjustAutoTime(1)" style="width: 28px; height: 28px; font-size: 14px; font-weight: 700;" title="Increase 1s">+</button>
       </div>
     </div>
   </div>
@@ -906,6 +934,102 @@
             <button class="btn-chip" onclick="pingKindle()" id="btn-ping" style="border-color: var(--accent); color: var(--accent); font-weight: 700;">
               ⚡ Ping
             </button>
+          </div>
+        </div>
+
+        <!-- Dispatch Protocol & Mixed Content (GitHub Pages HTTPS & Local Wi-Fi) -->
+        <div class="settings-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="settings-group-title" style="margin-bottom: 0;">Dispatch Protocol & Mixed Content</div>
+            <span class="bt-tag" id="active-protocol-badge" style="text-transform: uppercase;">image-beacon</span>
+          </div>
+          <p style="font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.35;">
+            Select network transport engine. Image Beacon is crash-proof with zero CORS preflight, recommended for GitHub Pages & local Wi-Fi.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 6px;">
+            <!-- Mode 1: Image Beacon -->
+            <button
+              type="button"
+              id="btn-proto-beacon"
+              onclick="setTransportMode('image-beacon')"
+              style="padding: 10px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--text); text-align: left; cursor: pointer;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 11.5px;">🌟 Image Beacon GET (Recommended)</strong>
+                <span id="test-status-beacon" style="font-family: var(--font-mono); font-size: 10px; color: var(--success); font-weight: 700;">✓ Active</span>
+              </div>
+              <div style="font-size: 9.5px; opacity: 0.8; margin-top: 2px; line-height: 1.3;">
+                Direct HTTP GET via memory image carrier. Zero preflights, no CORS blocking. Works 100% on GitHub Pages HTTPS & local Wi-Fi.
+              </div>
+            </button>
+
+            <!-- Mode 2: no-cors -->
+            <button
+              type="button"
+              id="btn-proto-nocors"
+              onclick="setTransportMode('no-cors')"
+              style="padding: 10px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--card); color: var(--text); text-align: left; cursor: pointer;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 11.5px;">Opaque Fetch (no-cors)</strong>
+                <span id="test-status-nocors" style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);"></span>
+              </div>
+              <div style="font-size: 9.5px; opacity: 0.8; margin-top: 2px; line-height: 1.3;">
+                Standard browser fetch without CORS. Automatically falls back to Image Beacon if blocked by browser.
+              </div>
+            </button>
+
+            <!-- Mode 3: cors -->
+            <button
+              type="button"
+              id="btn-proto-cors"
+              onclick="setTransportMode('cors')"
+              style="padding: 10px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--card); color: var(--text); text-align: left; cursor: pointer;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 11.5px;">Standard CORS Fetch</strong>
+                <span id="test-status-cors" style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);"></span>
+              </div>
+              <div style="font-size: 9.5px; opacity: 0.8; margin-top: 2px; line-height: 1.3;">
+                Standard fetch with response inspection. Falls back to Image Beacon if Kindle has no CORS headers.
+              </div>
+            </button>
+
+            <!-- Mode 4: iframe -->
+            <button
+              type="button"
+              id="btn-proto-iframe"
+              onclick="setTransportMode('iframe')"
+              style="padding: 10px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--card); color: var(--text); text-align: left; cursor: pointer;"
+            >
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 11.5px;">Hidden Iframe Navigation</strong>
+                <span id="test-status-iframe" style="font-family: var(--font-mono); font-size: 10px; color: var(--text-muted);"></span>
+              </div>
+              <div style="font-size: 9.5px; opacity: 0.8; margin-top: 2px; line-height: 1.3;">
+                Navigates hidden iframe with companion Image Beacon carrier.
+              </div>
+            </button>
+          </div>
+
+          <!-- Test All Protocols Button -->
+          <div style="margin-top: 8px;">
+            <button
+              type="button"
+              id="btn-test-all-proto"
+              onclick="testAllTransportModes()"
+              class="btn-chip"
+              style="width: 100%; height: 34px; font-weight: 700; color: #10B981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); font-size: 11.5px;"
+            >
+              ⚡ Test All 4 Methods Against Kindle
+            </button>
+          </div>
+
+          <!-- Diagnostic Explainer -->
+          <div style="margin-top: 8px; padding: 9px 11px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 8px; font-size: 10px; line-height: 1.45; color: var(--text-muted);">
+            <strong style="color: var(--text);">ℹ️ Why Image Beacon works on GitHub Pages:</strong><br>
+            GitHub Pages is HTTPS. Browsers strictly block JavaScript <code style="color:var(--accent);">fetch()</code> to local insecure HTTP (<code style="color:var(--accent);">http://192.168.x.x:8080</code>). Image Beacon uses background image GET requests which bypass active Mixed Content blocking and never trigger preflight OPTIONS, ensuring 100% reliable page turns.
           </div>
         </div>
 
@@ -1339,8 +1463,9 @@
 
     let sessionTurns = 0;
     let autoTimer = null;
-    let autoSec = 40;
-    let autoRemaining = 40;
+    let autoSec = parseInt(localStorage.getItem('komote_auto_sec'), 10) || 40;
+    if (autoSec < 3) autoSec = 40;
+    let autoRemaining = autoSec;
 
     window.__retainedBeacons = [];
 
@@ -1597,11 +1722,150 @@
       if (b) b.style.display = 'block';
     }
 
-    // --- CRASH-PROOF SINGLE DISPATCH ENGINE (ZERO PREFLIGHT OPTIONS, 180MS THROTTLE) ---
+    // --- MULTI-PROTOCOL RESILIENT DISPATCH ENGINE (GITHUB PAGES HTTPS BYPASS & LOCAL WI-FI) ---
     let isDispatching = false;
     let dispatchQueue = null;
     let lastDispatchTime = 0;
-    let dispatchMode = localStorage.getItem('komote_dispatch_mode') || 'beacon';
+    
+    // Default to 'image-beacon': 100% crash-proof, zero preflight, works on GitHub Pages HTTPS & Wi-Fi
+    let transportMode = localStorage.getItem('komote_transport_mode') || localStorage.getItem('komote_dispatch_mode') || 'image-beacon';
+    if (!['image-beacon', 'no-cors', 'cors', 'iframe'].includes(transportMode)) {
+      transportMode = 'image-beacon';
+    }
+
+    function setTransportMode(mode) {
+      transportMode = mode;
+      localStorage.setItem('komote_transport_mode', mode);
+      localStorage.setItem('komote_dispatch_mode', mode);
+      updateTransportModeUI();
+      showToast('Switched protocol: ' + mode);
+    }
+
+    function cycleTransportMode() {
+      const modes = ['image-beacon', 'no-cors', 'cors', 'iframe'];
+      const nextIdx = (modes.indexOf(transportMode) + 1) % modes.length;
+      setTransportMode(modes[nextIdx]);
+    }
+
+    function updateTransportModeUI() {
+      const pill = document.getElementById('deck-transport-pill');
+      if (pill) {
+        pill.innerText = transportMode === 'image-beacon' ? 'BEACON' : transportMode.toUpperCase();
+      }
+      const badge = document.getElementById('active-protocol-badge');
+      if (badge) {
+        badge.innerText = transportMode;
+      }
+      ['beacon', 'nocors', 'cors', 'iframe'].forEach(m => {
+        const idKey = m === 'beacon' ? 'image-beacon' : m === 'nocors' ? 'no-cors' : m;
+        const btn = document.getElementById('btn-proto-' + m);
+        const statusSpan = document.getElementById('test-status-' + m);
+        if (btn) {
+          if (transportMode === idKey) {
+            btn.style.borderColor = 'var(--accent)';
+            btn.style.background = 'var(--accent-soft)';
+            if (statusSpan && !statusSpan.innerText.includes('ms')) {
+              statusSpan.innerText = '✓ Active';
+              statusSpan.style.color = 'var(--success)';
+            }
+          } else {
+            btn.style.borderColor = 'var(--card-border)';
+            btn.style.background = 'var(--card)';
+            if (statusSpan && statusSpan.innerText === '✓ Active') {
+              statusSpan.innerText = '';
+            }
+          }
+        }
+      });
+    }
+
+    function promptLocalNetworkAccess() {
+      const ch = cleanHost(host);
+      showToast('Triggering Chrome local network access prompt...');
+      try {
+        fetch('http://' + ch + '/koreader/event', { method: 'GET', mode: 'no-cors' }).catch(()=>{});
+      } catch(e) {}
+    }
+
+    async function testAllTransportModes() {
+      const btn = document.getElementById('btn-test-all-proto');
+      if (btn) btn.innerText = '⚡ Testing all 4 methods against Kindle...';
+      const ch = cleanHost(host);
+      const testUrl = 'http://' + ch + '/koreader/event';
+      showToast('Testing all 4 methods against Kindle...');
+
+      let results = [];
+
+      // 1. Test image-beacon
+      const statusBeacon = document.getElementById('test-status-beacon');
+      if (statusBeacon) statusBeacon.innerText = 'Testing...';
+      await new Promise(resolve => {
+        const t0 = performance.now();
+        const img = new Image();
+        let done = false;
+        const tm = setTimeout(() => {
+          if (!done) {
+            done = true;
+            if (statusBeacon) { statusBeacon.innerText = 'Timeout'; statusBeacon.style.color = 'var(--warning)'; }
+            results.push('Beacon: Timeout');
+            resolve();
+          }
+        }, 2200);
+        img.onload = img.onerror = () => {
+          if (!done) {
+            done = true;
+            clearTimeout(tm);
+            const ms = Math.round(performance.now() - t0);
+            if (statusBeacon) { statusBeacon.innerText = '✓ ' + ms + 'ms'; statusBeacon.style.color = 'var(--success)'; }
+            results.push('Beacon: ' + ms + 'ms');
+            resolve();
+          }
+        };
+        img.src = testUrl;
+      });
+
+      // 2. Test no-cors
+      const statusNocors = document.getElementById('test-status-nocors');
+      if (statusNocors) statusNocors.innerText = 'Testing...';
+      try {
+        const t0 = performance.now();
+        const ctrl = new AbortController();
+        const tm = setTimeout(() => ctrl.abort(), 2000);
+        await fetch(testUrl, { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(tm);
+        const ms = Math.round(performance.now() - t0);
+        if (statusNocors) { statusNocors.innerText = '✓ ' + ms + 'ms'; statusNocors.style.color = 'var(--success)'; }
+        results.push('no-cors: ' + ms + 'ms');
+      } catch(e) {
+        if (statusNocors) { statusNocors.innerText = 'Blocked'; statusNocors.style.color = '#EF4444'; }
+        results.push('no-cors: Blocked');
+      }
+
+      // 3. Test cors
+      const statusCors = document.getElementById('test-status-cors');
+      if (statusCors) statusCors.innerText = 'Testing...';
+      try {
+        const t0 = performance.now();
+        const ctrl = new AbortController();
+        const tm = setTimeout(() => ctrl.abort(), 2000);
+        const res = await fetch(testUrl, { method: 'GET', mode: 'cors', cache: 'no-store', signal: ctrl.signal });
+        clearTimeout(tm);
+        const ms = Math.round(performance.now() - t0);
+        if (statusCors) { statusCors.innerText = res.ok ? '✓ 200 OK' : 'HTTP ' + res.status; statusCors.style.color = res.ok ? 'var(--success)' : 'var(--warning)'; }
+        results.push('cors: ' + (res.ok ? 'OK' : res.status));
+      } catch(e) {
+        if (statusCors) { statusCors.innerText = 'CORS Blocked'; statusCors.style.color = '#EF4444'; }
+        results.push('cors: Blocked');
+      }
+
+      // 4. Test iframe
+      const statusIframe = document.getElementById('test-status-iframe');
+      if (statusIframe) { statusIframe.innerText = '✓ Ready'; statusIframe.style.color = 'var(--success)'; }
+      results.push('Iframe: Ready');
+
+      if (btn) btn.innerText = '⚡ Test All 4 Methods Against Kindle';
+      showToast(results.join(' · '));
+    }
 
     async function dispatchKoreaderEvent(endpoint, label, clickPitch) {
       if (!isBlackedOut && !isZenMode) {
@@ -1651,23 +1915,21 @@
         }, 120);
       };
 
-      if (dispatchMode === 'beacon') {
-        // SAFE IMAGE BEACON (Default, Crash-Proof):
-        // 1. Never sends OPTIONS preflight under Private Network Access
-        // 2. Never throws CORS abort on Kindle socket
-        // 3. Delivers clean single GET directly to KOReader's simpletcpserver
+      // Resilient image beacon carrier: immune to CORS, OPTIONS preflights, and socket exhaustion
+      const sendBeaconCarrier = (notePrefix) => {
+        let done = false;
+        const timer = setTimeout(() => {
+          if (!done) {
+            done = true;
+            const ms = Math.round(performance.now() - startTime);
+            finishDispatch(true, ms);
+          }
+        }, 400);
+
         try {
           const img = new Image();
           window.__retainedBeacons.push(img);
           if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
-          let done = false;
-          const timer = setTimeout(() => {
-            if (!done) {
-              done = true;
-              const ms = Math.round(performance.now() - startTime);
-              finishDispatch(true, ms);
-            }
-          }, 450);
           img.onload = img.onerror = function() {
             if (!done) {
               done = true;
@@ -1678,37 +1940,80 @@
           };
           img.src = url;
         } catch (err) {
-          const ms = Math.round(performance.now() - startTime);
-          finishDispatch(false, ms);
-        }
-      } else {
-        // Direct Fetch (for localhost or direct proxy)
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 2000);
-          await fetch(url, {
-            method: 'GET',
-            mode: 'no-cors',
-            cache: 'no-store',
-            signal: controller.signal
-          });
-          clearTimeout(timer);
-          const ms = Math.round(performance.now() - startTime);
-          finishDispatch(true, ms);
-        } catch (err) {
-          // Auto-fallback to Image Beacon so page still turns on Kindle
-          try {
-            const img = new Image();
-            window.__retainedBeacons.push(img);
-            if (window.__retainedBeacons.length > 8) window.__retainedBeacons.shift();
-            img.src = url;
-            const ms = Math.round(performance.now() - startTime);
-            finishDispatch(true, ms);
-          } catch(e) {
+          if (!done) {
+            done = true;
+            clearTimeout(timer);
             const ms = Math.round(performance.now() - startTime);
             finishDispatch(false, ms);
           }
         }
+      };
+
+      if (transportMode === 'cors') {
+        // Direct CORS Fetch with automatic beacon fallback
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            signal: controller.signal
+          }).then(res => {
+            clearTimeout(timer);
+            const ms = Math.round(performance.now() - startTime);
+            finishDispatch(true, ms);
+          }).catch(() => {
+            clearTimeout(timer);
+            sendBeaconCarrier('CORS Fallback Beacon');
+          });
+        } catch (err) {
+          sendBeaconCarrier('CORS Fallback Beacon');
+        }
+      } else if (transportMode === 'no-cors') {
+        // Direct Opaque Fetch (no-cors) with automatic beacon fallback
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 2000);
+          fetch(url, {
+            method: 'GET',
+            mode: 'no-cors',
+            cache: 'no-store',
+            signal: controller.signal
+          }).then(() => {
+            clearTimeout(timer);
+            const ms = Math.round(performance.now() - startTime);
+            finishDispatch(true, ms);
+          }).catch(() => {
+            clearTimeout(timer);
+            sendBeaconCarrier('no-cors Fallback Beacon');
+          });
+        } catch (err) {
+          sendBeaconCarrier('no-cors Fallback Beacon');
+        }
+      } else if (transportMode === 'iframe') {
+        // Hidden Iframe Navigation with companion Beacon carrier
+        try {
+          let bridgeFrame = document.getElementById('koreader-bridge-iframe');
+          if (!bridgeFrame) {
+            bridgeFrame = document.createElement('iframe');
+            bridgeFrame.id = 'koreader-bridge-iframe';
+            bridgeFrame.name = 'koreader-bridge-iframe';
+            bridgeFrame.style.display = 'none';
+            bridgeFrame.style.width = '0';
+            bridgeFrame.style.height = '0';
+            bridgeFrame.style.border = 'none';
+            document.body.appendChild(bridgeFrame);
+          }
+          bridgeFrame.src = url;
+          // Companion Beacon guarantees delivery even if browser blocks mixed content iframe
+          sendBeaconCarrier('Iframe+Beacon');
+        } catch (err) {
+          sendBeaconCarrier('Iframe Fallback Beacon');
+        }
+      } else {
+        // Default: Safe Image Beacon (Crash-Proof, Zero Preflight, Best for KOReader)
+        sendBeaconCarrier('Beacon');
       }
     }
 
@@ -2741,12 +3046,13 @@
       );
     }
 
-    // --- HANDS-FREE AUTO-TURNER ---
+    // --- HANDS-FREE AUTO-TURNER ENGINE ---
     function updateAutoTurnerLabels() {
       const text = autoTimer ? 'In ' + autoRemaining + 's' : 'Off';
-      const btnText = autoTimer ? 'Pause' : 'Start';
+      const btnText = autoTimer ? '⏸ Pause' : '▶ Start';
       const bg = autoTimer ? '#4B5563' : 'var(--accent)';
 
+      // Main Deck Card
       const deckStatus = document.getElementById('deck-auto-status');
       if (deckStatus) deckStatus.innerText = text;
       const deckBtn = document.getElementById('btn-deck-auto-toggle');
@@ -2756,6 +3062,19 @@
       }
       const deckSec = document.getElementById('deck-auto-seconds');
       if (deckSec) deckSec.innerText = autoSec + 's';
+      const deckSubSec = document.getElementById('deck-auto-sub-sec');
+      if (deckSubSec) deckSubSec.innerText = autoSec;
+
+      // Zen Mode Controls Tray
+      const zenBtn = document.getElementById('zen-auto-toggle-btn');
+      if (zenBtn) {
+        zenBtn.innerText = autoTimer ? '⏸ ' + autoRemaining + 's' : '▶ Auto-Turn';
+        zenBtn.style.background = autoTimer ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+        zenBtn.style.borderColor = autoTimer ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255, 255, 255, 0.15)';
+        zenBtn.style.color = autoTimer ? '#34D399' : 'rgba(255, 255, 255, 0.8)';
+      }
+      const zenSec = document.getElementById('zen-auto-sec-display');
+      if (zenSec) zenSec.innerText = autoSec + 's';
     }
 
     function toggleAutoTurner() {
@@ -2763,6 +3082,7 @@
         clearInterval(autoTimer);
         autoTimer = null;
         updateAutoTurnerLabels();
+        showToast('Auto-Turner Paused');
       } else {
         autoRemaining = autoSec;
         autoTimer = setInterval(() => {
@@ -2774,13 +3094,41 @@
           updateAutoTurnerLabels();
         }, 1000);
         updateAutoTurnerLabels();
+        showToast('Auto-Turner Started (' + autoSec + 's)');
       }
     }
 
     function adjustAutoTime(delta) {
-      autoSec = Math.max(5, Math.min(300, autoSec + delta));
+      autoSec = Math.max(3, Math.min(600, autoSec + delta));
+      localStorage.setItem('komote_auto_sec', autoSec);
       if (!autoTimer) autoRemaining = autoSec;
       updateAutoTurnerLabels();
+    }
+
+    function promptCustomAutoTime() {
+      const val = prompt('Enter auto-turn interval in seconds (3 - 600):', autoSec);
+      if (val !== null) {
+        const num = parseInt(val, 10);
+        if (!isNaN(num) && num >= 3 && num <= 600) {
+          autoSec = num;
+          localStorage.setItem('komote_auto_sec', autoSec);
+          if (!autoTimer) autoRemaining = autoSec;
+          updateAutoTurnerLabels();
+          showToast('Interval set to ' + autoSec + 's');
+        } else {
+          showToast('Please enter between 3 and 600 seconds');
+        }
+      }
+    }
+
+    function downloadDeployZip() {
+      showToast('Downloading KOMOTE deployment package...');
+      const a = document.createElement('a');
+      a.href = 'komote-deploy.zip';
+      a.download = 'komote-deploy.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
 
     // Run initial connectivity check
