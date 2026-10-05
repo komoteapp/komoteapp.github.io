@@ -35,12 +35,12 @@ import {
   Layers,
   Sparkles,
   Palette,
+  Download,
 } from 'lucide-react';
 import { triggerTactileFeedback } from './utils/soundAndHaptics';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { ControllerModal } from './components/ControllerModal';
 import { InstallModal } from './components/InstallModal';
-import { HttpsFixModal } from './components/HttpsFixModal';
 import {
   connectWebBluetooth,
   disconnectWebBluetooth,
@@ -115,7 +115,7 @@ const GP_BUTTON_LABELS = [
   'D-Pad Right',
 ];
 
-export type TransportMode = 'no-cors' | 'cors' | 'tab-bridge' | 'iframe' | 'image-beacon';
+export type TransportMode = 'image-beacon' | 'no-cors' | 'iframe';
 
 interface LogEntry {
   id: string;
@@ -138,13 +138,14 @@ export default function App() {
   });
   const [transportMode, setTransportMode] = useState<TransportMode>(() => {
     const saved = localStorage.getItem('komote_transport_mode');
-    if (saved && ['image-beacon', 'no-cors', 'cors', 'iframe', 'tab-bridge'].includes(saved)) {
+    if (saved === 'tab-bridge' || !saved || saved === 'cors') {
+      localStorage.setItem('komote_transport_mode', 'image-beacon');
+      return 'image-beacon';
+    }
+    if (['image-beacon', 'no-cors', 'iframe'].includes(saved)) {
       return saved as TransportMode;
     }
-    const oldMode = localStorage.getItem('komote_dispatch_mode');
-    if (oldMode === 'fetch') return 'no-cors';
-    if (oldMode === 'beacon') return 'image-beacon';
-    return 'no-cors';
+    return 'image-beacon';
   });
   const [isIframe, setIsIframe] = useState<boolean>(() => {
     try {
@@ -197,7 +198,6 @@ export default function App() {
 
   // UI Modals
   const [activeModal, setActiveModal] = useState<'none' | 'settings' | 'controller' | 'customize' | 'pwa' | 'install'>('none');
-  const [showHttpsFixModal, setShowHttpsFixModal] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Diagnostics & Status
@@ -313,6 +313,15 @@ export default function App() {
     localStorage.setItem('komote_custom_btns_v9', JSON.stringify(customButtons));
   }, [customButtons]);
 
+  // Ensure transportMode is never tab-bridge or cors (which could open tabs)
+  useEffect(() => {
+    const saved = localStorage.getItem('komote_transport_mode');
+    if (saved === 'tab-bridge' || saved === 'cors' || !saved) {
+      localStorage.setItem('komote_transport_mode', 'image-beacon');
+      setTransportMode('image-beacon');
+    }
+  }, []);
+
   // Clean host helper - auto adds default KOReader port :8080 if not specified
   const cleanHost = (h: string) => {
     let cleaned = (h || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '').trim();
@@ -375,21 +384,15 @@ export default function App() {
         }, 120);
       };
 
-      // Mode 1: Tab Bridge (100% bypasses HTTPS Mixed Content via named top-level window)
-      if (transportMode === 'tab-bridge') {
-        try {
-          const bridgeWin = window.open(cleanUrl, 'komote_kindle_bridge');
-          if (bridgeWin) {
-            finishDispatch('ok', Math.round(performance.now() - startTime), 'Bridge Tab');
-          } else {
-            finishDispatch('error', 0, 'Popup Blocked');
-            showToast('⚠️ Popup blocked. Please allow popups for komoteapp.github.io');
-            setShowHttpsFixModal(true);
-          }
-        } catch {
-          finishDispatch('error', 0, 'Bridge Failed');
-          setShowHttpsFixModal(true);
-        }
+      // Mode 1: Image Beacon (Silent background GET, 0 tabs, never blocked by CORS)
+      if (transportMode === 'image-beacon') {
+        const img = new Image();
+        retainedBeaconsRef.current.push(img);
+        if (retainedBeaconsRef.current.length > 8) retainedBeaconsRef.current.shift();
+        img.onload = img.onerror = () => {
+          finishDispatch('ok', Math.round(performance.now() - startTime), 'Beacon Sent');
+        };
+        img.src = cleanUrl;
         return;
       }
 
@@ -413,33 +416,13 @@ export default function App() {
         } catch {}
       }
 
-      // Mode 3: Image Beacon
-      if (transportMode === 'image-beacon') {
-        const img = new Image();
-        retainedBeaconsRef.current.push(img);
-        if (retainedBeaconsRef.current.length > 8) retainedBeaconsRef.current.shift();
-        img.onload = () => finishDispatch('ok', Math.round(performance.now() - startTime), 'Beacon Sent');
-        img.onerror = () => {
-          const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-          if (isHttps) {
-            finishDispatch('error', Math.round(performance.now() - startTime), 'Blocked by HTTPS');
-            showToast('⚠️ Blocked by HTTPS: Allow Insecure Content in Chrome site settings or use Bridge Tab.');
-            setShowHttpsFixModal(true);
-          } else {
-            finishDispatch('ok', Math.round(performance.now() - startTime), 'Beacon Sent');
-          }
-        };
-        img.src = cleanUrl;
-        return;
-      }
-
-      // Mode 4 & 5: Direct fetch with mode: 'no-cors' or 'cors' and cache: 'no-store'
+      // Mode 3: Direct fetch with mode: 'no-cors' and cache: 'no-store'
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 2500);
 
       fetch(cleanUrl, {
         method: 'GET',
-        mode: transportMode === 'cors' ? 'cors' : 'no-cors',
+        mode: 'no-cors',
         cache: 'no-store',
         signal: controller.signal,
       })
@@ -451,14 +434,8 @@ export default function App() {
         .catch(() => {
           clearTimeout(timer);
           const ms = Math.round(performance.now() - startTime);
-          const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
-          finishDispatch('error', ms, isHttps ? 'Blocked by HTTPS' : 'Unreachable');
-          if (isHttps) {
-            showToast('⚠️ Blocked by HTTPS: Allow Insecure Content in Chrome or use Bridge Tab.');
-            setShowHttpsFixModal(true);
-          } else {
-            showToast(`⚠️ Cannot reach Kindle on ${ch}. Verify Kindle IP & KOReader HTTP server.`);
-          }
+          finishDispatch('error', ms, 'Unreachable');
+          showToast(`⚠️ Cannot reach Kindle on ${ch}. Verify Kindle IP & KOReader HTTP server.`);
         });
     },
     [host, transportMode, hapticsOn]
@@ -553,6 +530,8 @@ export default function App() {
   const zenTouchStartX = useRef<number | null>(null);
   const [dragDeltaY, setDragDeltaY] = useState<number>(0);
   const [isDragging, setIsDragging] = useState<boolean>(false);
+  const lastZenTouchTimeRef = useRef<number>(0);
+  const lastZenTapTimeRef = useRef<number>(0);
 
   const handleZenTouchStart = (e: React.TouchEvent) => {
     if ((e.target as HTMLElement)?.closest('[data-zen-interactive="true"]')) {
@@ -562,6 +541,7 @@ export default function App() {
       setDragDeltaY(0);
       return;
     }
+    lastZenTouchTimeRef.current = performance.now();
     zenTouchStartY.current = e.touches[0].clientY;
     zenTouchStartX.current = e.touches[0].clientX;
     setIsDragging(true);
@@ -596,6 +576,12 @@ export default function App() {
     zenTouchStartX.current = null;
     setIsDragging(false);
     setDragDeltaY(0);
+    lastZenTouchTimeRef.current = performance.now();
+
+    // Prevent mobile browser from synthesizing mouseup & click events
+    if (e.cancelable) {
+      e.preventDefault();
+    }
 
     // 1. Swipe up detection (dragged up by > 35px, predominantly vertical)
     if (deltaY < -35 && Math.abs(deltaY) > deltaX * 0.6) {
@@ -618,6 +604,11 @@ export default function App() {
 
     // 3. Tap detection (minimal movement): split screen vertically in half
     if (Math.abs(deltaY) < 25 && deltaX < 25) {
+      const now = performance.now();
+      // Debounce tap to strictly avoid double turns
+      if (now - lastZenTapTimeRef.current < 350) return;
+      lastZenTapTimeRef.current = now;
+
       const screenWidth = window.innerWidth;
       if (endX < screenWidth / 2) {
         if (isSwapped) handleNextPage();
@@ -637,6 +628,8 @@ export default function App() {
   };
 
   const handleZenMouseDown = (e: React.MouseEvent) => {
+    // Ignore synthetic mouse events generated by mobile touch
+    if (performance.now() - lastZenTouchTimeRef.current < 1000) return;
     if ((e.target as HTMLElement)?.closest('[data-zen-interactive="true"]')) {
       zenTouchStartY.current = null;
       zenTouchStartX.current = null;
@@ -651,6 +644,7 @@ export default function App() {
   };
 
   const handleZenMouseMove = (e: React.MouseEvent) => {
+    if (performance.now() - lastZenTouchTimeRef.current < 1000) return;
     if ((e.target as HTMLElement)?.closest('[data-zen-interactive="true"]')) {
       return;
     }
@@ -660,6 +654,8 @@ export default function App() {
   };
 
   const handleZenMouseUp = (e: React.MouseEvent) => {
+    // Ignore synthetic mouse events generated by mobile touch
+    if (performance.now() - lastZenTouchTimeRef.current < 1000) return;
     if ((e.target as HTMLElement)?.closest('[data-zen-interactive="true"]')) {
       zenTouchStartY.current = null;
       zenTouchStartX.current = null;
@@ -697,6 +693,10 @@ export default function App() {
 
     // 3. Tap detection: Turn page
     if (Math.abs(deltaY) < 25 && deltaX < 25) {
+      const now = performance.now();
+      if (now - lastZenTapTimeRef.current < 350) return;
+      lastZenTapTimeRef.current = now;
+
       const screenWidth = window.innerWidth;
       if (e.clientX < screenWidth / 2) {
         if (isSwapped) handleNextPage();
@@ -1156,19 +1156,6 @@ export default function App() {
     }
   };
 
-  const handleEnableTabBridge = () => {
-    const ch = cleanHost(host);
-    const testUrl = `http://${ch}/koreader/event`;
-    const win = window.open(testUrl, 'komote_kindle_bridge');
-    setTransportMode('tab-bridge');
-    localStorage.setItem('komote_transport_mode', 'tab-bridge');
-    if (win) {
-      showToast('✓ Kindle Bridge Tab connected & active!');
-    } else {
-      showToast('⚠️ Popup blocked. Please allow popups for this site.');
-    }
-  };
-
   const handleTestAllModes = async () => {
     setIsTestingAll(true);
     const ch = cleanHost(host);
@@ -1176,10 +1163,8 @@ export default function App() {
     showToast('Testing all dispatch methods against Kindle...');
 
     const newResults: Record<string, { status: 'idle' | 'testing' | 'ok' | 'error'; ms?: number; note?: string }> = {
-      'no-cors': { status: 'testing' },
-      'tab-bridge': { status: 'ok', note: 'Bypasses HTTPS Mixed Content' },
-      cors: { status: 'testing' },
       'image-beacon': { status: 'testing' },
+      'no-cors': { status: 'testing' },
       iframe: { status: 'testing' },
     };
     setTestResults({ ...newResults });
@@ -1195,18 +1180,7 @@ export default function App() {
     }
     setTestResults({ ...newResults });
 
-    // 2. Test cors
-    try {
-      const t0 = performance.now();
-      const res = await fetch(testUrl, { method: 'GET', mode: 'cors', cache: 'no-store', signal: AbortSignal.timeout(2500) });
-      const ms = Math.round(performance.now() - t0);
-      newResults['cors'] = { status: res.ok ? 'ok' : 'error', ms, note: res.ok ? '200 OK' : `HTTP ${res.status}` };
-    } catch (e: any) {
-      newResults['cors'] = { status: 'error', note: e?.message || 'CORS Blocked' };
-    }
-    setTestResults({ ...newResults });
-
-    // 3. Test image-beacon
+    // 2. Test image-beacon
     await new Promise<void>((resolve) => {
       const t0 = performance.now();
       const img = new Image();
@@ -1257,6 +1231,7 @@ export default function App() {
           onMouseDown={handleZenMouseDown}
           onMouseMove={handleZenMouseMove}
           onMouseUp={handleZenMouseUp}
+          onClick={(e) => e.stopPropagation()}
           style={{
             transform: dragDeltaY < 0 ? `translateY(${Math.max(-100, dragDeltaY)}px)` : undefined,
             transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
@@ -2030,25 +2005,9 @@ export default function App() {
 
       {/* 7. TOAST NOTIFICATION */}
       {toastMessage && (
-        <div
-          onClick={() => {
-            if (toastMessage.includes('HTTPS') || toastMessage.includes('Insecure Content') || toastMessage.includes('Bridge Tab')) {
-              setShowHttpsFixModal(true);
-            }
-          }}
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#18181B] text-white px-4 py-2.5 rounded-full shadow-2xl border font-mono text-xs flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150 ${
-            toastMessage.includes('HTTPS')
-              ? 'border-amber-500 text-amber-300 cursor-pointer pointer-events-auto hover:bg-[#202025]'
-              : 'border-[#D9532F] pointer-events-none'
-          }`}
-        >
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#18181B] text-white px-4 py-2.5 rounded-full shadow-2xl border border-[#D9532F] font-mono text-xs flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none">
           <Sparkles className="w-3.5 h-3.5 text-[#D9532F]" />
           <span>{toastMessage}</span>
-          {toastMessage.includes('HTTPS') && (
-            <span className="underline ml-1 font-bold text-white bg-amber-500/20 px-1.5 py-0.5 rounded">
-              Fix Guide ↗
-            </span>
-          )}
         </div>
       )}
 
@@ -2086,9 +2045,37 @@ export default function App() {
                 <Settings className="w-5 h-5 text-[#D9532F]" />
                 <h3 className="font-bold text-base">Settings & Kindle Setup</h3>
               </div>
-              <button onClick={() => setActiveModal('none')} className="w-8 h-8 rounded-lg border border-current/15 flex items-center justify-center cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (isInstalled) {
+                      showToast('✓ KOMOTE is already installed on your device!');
+                      return;
+                    }
+                    if (isInstallable) {
+                      const success = await install();
+                      if (success) {
+                        showToast('✓ KOMOTE installed successfully!');
+                        return;
+                      }
+                    }
+                    setActiveModal('install');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 text-xs font-semibold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-sm"
+                  title="Install KOMOTE as an offline-capable PWA"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isInstalled ? 'Installed ✓' : 'Install PWA'}</span>
+                </button>
+                <button
+                  onClick={() => setActiveModal('none')}
+                  className="w-8 h-8 rounded-lg border border-current/15 flex items-center justify-center cursor-pointer hover:bg-current/10"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="overflow-y-auto py-3 space-y-4 pr-1 text-xs">
@@ -2139,184 +2126,10 @@ export default function App() {
                   >
                     Open Kindle in New Tab ↗
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowHttpsFixModal(true)}
-                    className="text-[10px] font-mono text-cyan-400 hover:underline cursor-pointer font-semibold"
-                    title="View instructions to allow local network access in Chrome"
-                  >
-                    HTTPS Unblock Guide 🔒
-                  </button>
                 </div>
                 <p className="text-[11px] opacity-70">
                   Enable via Kindle: <strong>Tools (wrench) → More tools → KOReader HTTP inspector → Start server</strong> (port 8080).
                 </p>
-              </div>
-
-              {/* Dispatch Engine Setting */}
-              <div className={`p-3.5 rounded-xl border space-y-3 ${isDark ? 'bg-[#121316] border-[#27272A]' : 'bg-[#F4F3EF] border-[#DCD9CE]'}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="font-bold block">Network Dispatch Protocol</label>
-                    <span className="text-[10px] opacity-70">Method used to send packets to your Kindle over Wi-Fi</span>
-                  </div>
-                  <span className="font-mono text-[10px] text-emerald-400 font-bold uppercase">
-                    {transportMode}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                  {/* Mode 1: no-cors */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTransportMode('no-cors');
-                      localStorage.setItem('komote_transport_mode', 'no-cors');
-                      showToast('Switched to Opaque Fetch (no-cors)');
-                    }}
-                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
-                      transportMode === 'no-cors'
-                        ? 'border-[#D9532F] bg-[#D9532F]/15 font-semibold text-[#D9532F]'
-                        : isDark
-                        ? 'bg-[#18181B] border-[#27272A] opacity-75'
-                        : 'bg-white border-[#DCD9CE] opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs">Opaque Fetch (no-cors)</span>
-                      {testResults['no-cors']?.status === 'ok' && <span className="text-emerald-400 font-mono text-[10px]">✓ {testResults['no-cors'].ms}ms</span>}
-                      {testResults['no-cors']?.status === 'error' && <span className="text-rose-400 font-mono text-[10px]">✕</span>}
-                    </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Native background fetch (fastest). Works when Insecure Content is allowed.</div>
-                  </button>
-
-                  {/* Mode 2: tab-bridge */}
-                  <button
-                    type="button"
-                    onClick={handleEnableTabBridge}
-                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
-                      transportMode === 'tab-bridge'
-                        ? 'border-cyan-500 bg-cyan-500/15 font-semibold text-cyan-400'
-                        : isDark
-                        ? 'bg-[#18181B] border-[#27272A] opacity-75'
-                        : 'bg-white border-[#DCD9CE] opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs">Kindle Tab Bridge (HTTPS Proof)</span>
-                      <span className="text-cyan-400 font-mono text-[10px]">✓ Bypasses Blocks</span>
-                    </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Routes commands through a background Kindle tab. Bypasses Chrome HTTPS restrictions!</div>
-                  </button>
-
-                  {/* Mode 3: cors */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTransportMode('cors');
-                      localStorage.setItem('komote_transport_mode', 'cors');
-                      showToast('Switched to Standard CORS Fetch');
-                    }}
-                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
-                      transportMode === 'cors'
-                        ? 'border-[#D9532F] bg-[#D9532F]/15 font-semibold text-[#D9532F]'
-                        : isDark
-                        ? 'bg-[#18181B] border-[#27272A] opacity-75'
-                        : 'bg-white border-[#DCD9CE] opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs">Standard CORS Fetch</span>
-                      {testResults['cors']?.status === 'ok' && <span className="text-emerald-400 font-mono text-[10px]">✓ {testResults['cors'].ms}ms</span>}
-                      {testResults['cors']?.status === 'error' && <span className="text-rose-400 font-mono text-[10px]">✕</span>}
-                    </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Standard cross-origin fetch with response inspection.</div>
-                  </button>
-
-                  {/* Mode 4: iframe */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTransportMode('iframe');
-                      localStorage.setItem('komote_transport_mode', 'iframe');
-                      showToast('Switched to Hidden Iframe Navigation');
-                    }}
-                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
-                      transportMode === 'iframe'
-                        ? 'border-[#D9532F] bg-[#D9532F]/15 font-semibold text-[#D9532F]'
-                        : isDark
-                        ? 'bg-[#18181B] border-[#27272A] opacity-75'
-                        : 'bg-white border-[#DCD9CE] opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs">Hidden Iframe Navigation</span>
-                      {testResults['iframe']?.status === 'ok' && <span className="text-emerald-400 font-mono text-[10px]">✓ Ready</span>}
-                    </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Submits navigation form to hidden iframe frame.</div>
-                  </button>
-
-                  {/* Mode 5: image-beacon */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTransportMode('image-beacon');
-                      localStorage.setItem('komote_transport_mode', 'image-beacon');
-                      showToast('Switched to Image Beacon');
-                    }}
-                    className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
-                      transportMode === 'image-beacon'
-                        ? 'border-[#D9532F] bg-[#D9532F]/15 font-semibold text-[#D9532F]'
-                        : isDark
-                        ? 'bg-[#18181B] border-[#27272A] opacity-75'
-                        : 'bg-white border-[#DCD9CE] opacity-75'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs">Image Beacon GET</span>
-                      {testResults['image-beacon']?.status === 'ok' && <span className="text-emerald-400 font-mono text-[10px]">✓ {testResults['image-beacon'].ms}ms</span>}
-                      {testResults['image-beacon']?.status === 'error' && <span className="text-rose-400 font-mono text-[10px]">✕</span>}
-                    </div>
-                    <div className="text-[9.5px] opacity-80 mt-1 leading-snug">Uses background image carrier. Never triggers CORS preflight options.</div>
-                  </button>
-                </div>
-
-                {/* Auto Test All Modes Button */}
-                <div className="pt-1 border-t border-current/10 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={handleTestAllModes}
-                    disabled={isTestingAll}
-                    className="w-full py-2 px-3 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/40 text-emerald-400 font-semibold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
-                  >
-                    <span>⚡</span>
-                    <span>{isTestingAll ? 'Testing All 4 Methods...' : 'Test All 4 Methods Against Kindle'}</span>
-                  </button>
-                </div>
-
-                {/* Helpful Connection & CORS Explanation */}
-                <div className="mt-2 p-2.5 rounded-lg bg-white/[0.03] border border-current/10 text-[11px] space-y-1.5 leading-relaxed opacity-85">
-                  <div className="font-bold flex items-center gap-1 text-[#D9532F]">
-                    <span>ℹ️</span>
-                    <span>How KOReader Receives Commands</span>
-                  </div>
-                  <ul className="list-disc pl-4 space-y-1 text-[10px] opacity-90">
-                    <li>
-                      <strong>Image Beacon (Recommended):</strong> KOReader's single-threaded HTTP server does not support CORS <code className="font-mono text-[9px] px-1 bg-current/10 rounded">OPTIONS</code> preflights. Image Beacon sends direct GET requests without preflight, ensuring reliable page turns.
-                    </li>
-                    <li>
-                      <strong>CORS & Opaque Fetch:</strong> Standard browser <code className="font-mono text-[9px] px-1 bg-current/10 rounded">fetch()</code> requires CORS headers from the server. If CORS fails, KOMOTE now <strong>automatically falls back to Image Beacon</strong> so your page still turns!
-                    </li>
-                    <li>
-                      <strong>Port Auto-Configuration:</strong> If no port is specified in your IP, port <code className="font-mono text-[9px] px-1 bg-current/10 rounded">:8080</code> is automatically appended.
-                    </li>
-                    {typeof window !== 'undefined' && window.location.protocol === 'https:' && (
-                      <li className="text-amber-400 font-medium">
-                        <strong>HTTPS Mixed Content Notice:</strong> Because you are on an HTTPS connection, browsers block local HTTP requests to <code className="font-mono text-[9px] px-1 bg-current/10 rounded">192.168.x.x</code>. For 100% unrestricted Wi-Fi communication, download the <strong>Standalone Offline HTML</strong> or <strong>Full ZIP</strong> package to run locally or allow Insecure Content in Chrome site settings.
-                      </li>
-                    )}
-                  </ul>
-                </div>
               </div>
 
               {/* Color Themes & Custom Color Picker */}
@@ -2613,15 +2426,6 @@ export default function App() {
         isOpen={activeModal === 'pwa' || activeModal === 'install'}
         onClose={() => setActiveModal('none')}
         isDark={isDark}
-      />
-
-      {/* 12. MODAL: HTTPS UNBLOCK & BRIDGE GUIDE */}
-      <HttpsFixModal
-        isOpen={showHttpsFixModal}
-        onClose={() => setShowHttpsFixModal(false)}
-        isDark={isDark}
-        host={host}
-        onEnableTabBridge={handleEnableTabBridge}
       />
     </div>
   );

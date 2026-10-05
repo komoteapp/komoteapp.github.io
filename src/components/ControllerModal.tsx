@@ -8,14 +8,7 @@ import {
   Check,
   Sparkles,
   Bluetooth,
-  Download,
-  ShieldCheck,
-  Smartphone,
-  ExternalLink,
-  CheckCircle2,
-  Info,
 } from 'lucide-react';
-import { downloadKeyMapperFile } from '../utils/keyMapperExporter';
 import { isWebBluetoothSupported, BLEDeviceState } from '../utils/webBluetooth';
 
 export interface ControllerModalProps {
@@ -91,7 +84,6 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
   onConnectWebBluetooth,
   onDisconnectWebBluetooth,
 }) => {
-  const [activeTab, setActiveTab] = useState<'mapping' | 'android'>('mapping');
   const [learningAction, setLearningAction] = useState<string | null>(null);
   const [learnTimer, setLearnTimer] = useState<number>(15);
   const [isConnectingBle, setIsConnectingBle] = useState<boolean>(false);
@@ -221,11 +213,6 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
     }
   };
 
-  const handleDownloadKeyMapper = () => {
-    downloadKeyMapperFile(kindleHost);
-    onShowToast('✓ Downloaded Key Mapper profile with your Kindle IP!');
-  };
-
   return (
     <div
       className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
@@ -267,35 +254,8 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
           </button>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-current/10 pt-2 gap-2 text-xs">
-          <button
-            onClick={() => setActiveTab('mapping')}
-            className={`pb-2.5 px-3 font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'mapping'
-                ? 'border-[#D9532F] text-[#D9532F]'
-                : 'border-transparent opacity-60 hover:opacity-100'
-            }`}
-          >
-            <Gamepad2 className="w-3.5 h-3.5" />
-            <span>Key Mapping</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('android')}
-            className={`pb-2.5 px-3 font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'android'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent opacity-60 hover:opacity-100'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Android Background & Accessibility</span>
-          </button>
-        </div>
-
-        {/* TAB 1: KEY MAPPING */}
-        {activeTab === 'mapping' && (
-          <div className="py-3 space-y-4 text-xs">
+        {/* KEY MAPPING */}
+        <div className="py-3 space-y-4 text-xs">
             {/* Hardware Status + Web Bluetooth Quick Action */}
             <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2 text-blue-400 font-semibold text-xs">
@@ -495,119 +455,6 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
               </div>
             </div>
           </div>
-        )}
-
-        {/* TAB 2: ANDROID BACKGROUND & ACCESSIBILITY */}
-        {activeTab === 'android' && (
-          <div className="py-3 space-y-4 text-xs">
-            {/* The Core Explanation */}
-            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 text-amber-300 text-[11.5px] leading-relaxed">
-              <div className="font-bold flex items-center gap-2 text-amber-200 text-xs">
-                <Info className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Why standard Bluetooth clickers leak into other apps on Android</span>
-              </div>
-              <p className="opacity-90">
-                When you connect a Bluetooth ring or clicker to Android as an HID Keyboard, Android sends those keys (Space, Enter, Arrows) <strong>strictly to whatever app is active on your screen</strong> (scrolling Instagram, typing in WhatsApp, etc.). Android OS security blocks web browsers from being background keyloggers across other apps.
-              </p>
-              <p className="font-semibold text-amber-200 pt-0.5">
-                Here are the 3 ways to tie your controller exclusively to your Kindle without clicks leaking into other apps:
-              </p>
-            </div>
-
-            {/* Method 1: Web Bluetooth GATT (Built right into KOMOTE) */}
-            <div className={`p-4 rounded-2xl border space-y-2.5 ${isDark ? 'bg-[#121316] border-[#27272A]' : 'bg-[#F4F3EF] border-[#DCD9CE]'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-bold text-xs text-blue-400">
-                  <Bluetooth className="w-4 h-4" />
-                  <span>Method 1: Direct Web Bluetooth (Zero Extra Apps)</span>
-                </div>
-                {bleState.connected && (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    Connected ✓
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] opacity-80 leading-relaxed">
-                Connect your Bluetooth LE ring or clicker directly inside KOMOTE via Web Bluetooth GATT. Because it connects directly to KOMOTE, <strong>signals bypass Android&apos;s OS keyboard completely</strong> — your clicks will NEVER type spaces or scroll inside other apps!
-              </p>
-              <div className="pt-1 flex items-center gap-2">
-                <button
-                  onClick={handleWebBluetoothClick}
-                  disabled={isConnectingBle}
-                  className={`h-8 px-4 rounded-xl text-xs font-bold border flex items-center gap-1.5 cursor-pointer transition-all ${
-                    bleState.connected
-                      ? 'border-rose-500/30 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20'
-                      : 'border-blue-500/40 text-white bg-blue-600 hover:bg-blue-500 shadow-md'
-                  }`}
-                >
-                  <Bluetooth className="w-3.5 h-3.5" />
-                  <span>
-                    {isConnectingBle
-                      ? 'Searching BLE devices...'
-                      : bleState.connected
-                      ? `Disconnect ${bleState.name}`
-                      : '🔗 Pair via Web Bluetooth'}
-                  </span>
-                </button>
-                {bleState.connected && (
-                  <span className="text-[10px] font-mono opacity-70">
-                    Ready! Clicks go directly to Kindle.
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Method 2: Android Accessibility Service via Key Mapper */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-3 text-emerald-300">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 font-bold text-xs text-emerald-200">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Method 2: Android Accessibility Service (Key Mapper)</span>
-                </div>
-                <span className="text-[10px] font-mono bg-emerald-500/20 px-2 py-0.5 rounded-full text-emerald-300">
-                  100% Background
-                </span>
-              </div>
-              <p className="text-[11px] opacity-90 leading-relaxed">
-                Android allows apps with <strong>Accessibility Permission</strong> (<code>BIND_ACCESSIBILITY_SERVICE</code>) to intercept hardware keys from specific Bluetooth controllers, <strong>consume them completely</strong> (so other apps never see them), and trigger HTTP requests in the background 24/7.
-              </p>
-
-              <div className="space-y-1.5 text-[11px] bg-black/20 p-3 rounded-xl border border-emerald-500/20">
-                <div className="font-bold text-emerald-200">Quick 60-Second Setup:</div>
-                <ol className="list-decimal list-inside space-y-1 opacity-90 text-[10.5px]">
-                  <li>
-                    Install the free, open-source <strong>Key Mapper</strong> app from Google Play Store or F-Droid.
-                  </li>
-                  <li>
-                    Open Key Mapper → Tap <em>Enable Accessibility Service</em> when prompted.
-                  </li>
-                  <li>
-                    Tap the button below to download the pre-configured KOMOTE profile.
-                  </li>
-                  <li>
-                    In Key Mapper, tap Menu (⋮) → <strong>Restore Backup / Import</strong> → Select the downloaded file.
-                  </li>
-                  <li>
-                    Press your Bluetooth remote buttons to bind them. Done! Now your remote is 100% tied to your Kindle and runs silently in the background across all apps.
-                  </li>
-                </ol>
-              </div>
-
-              <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                <button
-                  onClick={handleDownloadKeyMapper}
-                  className="h-8 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>📥 Download Key Mapper Profile for KOMOTE</span>
-                </button>
-                <span className="text-[10px] font-mono opacity-80">
-                  Pre-filled with: {kindleHost || 'Kindle IP'}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Footer */}
         <div className="pt-3 border-t border-current/10 flex items-center justify-between">
