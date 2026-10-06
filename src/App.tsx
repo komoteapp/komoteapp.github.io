@@ -41,6 +41,7 @@ import { triggerTactileFeedback } from './utils/soundAndHaptics';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { ControllerModal } from './components/ControllerModal';
 import { InstallModal } from './components/InstallModal';
+import { EndpointDirectory } from './components/EndpointDirectory';
 
 interface ActionMeta {
   id: string;
@@ -55,16 +56,12 @@ const STANDARD_ACTIONS: ActionMeta[] = [
   { id: 'font_dec', name: 'Font -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1', defaultVisible: true },
   { id: 'light_inc', name: 'Light +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1', defaultVisible: true },
   { id: 'light_dec', name: 'Light -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1', defaultVisible: true },
+  { id: 'toc', name: 'Chapters', icon: '📖', endpoint: '/koreader/event/ShowToc', defaultVisible: true },
   { id: 'next_ch', name: 'Next Ch.', icon: '⏭️', endpoint: '/koreader/event/GotoNextChapter', defaultVisible: true },
   { id: 'prev_ch', name: 'Prev Ch.', icon: '⏮️', endpoint: '/koreader/event/GotoPrevChapter', defaultVisible: true },
   { id: 'refresh', name: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh', defaultVisible: true },
   { id: 'night', name: 'Night Mode', icon: '🌙', endpoint: '/koreader/event/ToggleNightMode', defaultVisible: true },
   { id: 'bookmark', name: 'Bookmark', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark', defaultVisible: true },
-];
-
-const CATALOG_PRESETS = [
-  { name: 'Rotate 90°', icon: '🔄', endpoint: '/koreader/event/RotateScreen/1', desc: 'Rotate orientation clockwise' },
-  { name: 'Screenshot', icon: '📸', endpoint: '/koreader/event/TakeScreenshot', desc: 'Capture Kindle screenshot' },
 ];
 
 const ACCENT_COLORS = [
@@ -82,6 +79,8 @@ export const TIMEOUT_OPTIONS = [0, 15, 30, 60, 120, 300];
 const DEFAULT_BT_MAPPINGS: Record<string, string[]> = {
   nextPage: [],
   prevPage: [],
+  showToc: [],
+  toggleAutoTurn: [],
   fullRefresh: [],
   fontIncrease: [],
   fontDecrease: [],
@@ -251,12 +250,22 @@ export default function App() {
     }
   });
 
-  // Single-dispatch queue refs (Crash-proof protection against overloading LuaSocket)
-  const isDispatchingRef = useRef<boolean>(false);
-  const dispatchQueueRef = useRef<{ endpoint: string; label: string; feedback: 'next' | 'prev' | 'secondary' } | null>(null);
-  const lastDispatchTimeRef = useRef<number>(0);
-  const retainedBeaconsRef = useRef<HTMLImageElement[]>([]);
-  const wakeLockObjRef = useRef<WakeLockSentinel | null>(null);
+  const [customKeymaps, setCustomKeymaps] = useState<Array<{ id: string; name: string; icon: string; endpoint: string; desc?: string }>>(() => {
+    try {
+      const saved = localStorage.getItem('komote_custom_keymaps_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('komote_custom_btns_v9', JSON.stringify(customButtons));
+  }, [customButtons]);
+
+  useEffect(() => {
+    localStorage.setItem('komote_custom_keymaps_v1', JSON.stringify(customKeymaps));
+  }, [customKeymaps]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -264,6 +273,67 @@ export default function App() {
       setToastMessage((cur) => (cur === msg ? null : cur));
     }, 2400);
   }, []);
+
+  const handleAddCustomKeymap = useCallback(
+    (item: { name: string; icon: string; endpoint: string; desc?: string }) => {
+      const newId = `km_${Date.now()}`;
+      setCustomKeymaps((prev) => {
+        if (prev.some((k) => k.endpoint === item.endpoint)) return prev;
+        return [
+          ...prev,
+          {
+            id: newId,
+            name: item.name,
+            icon: item.icon,
+            endpoint: item.endpoint,
+            desc: item.desc,
+          },
+        ];
+      });
+      setBtMappings((prev) => ({ ...prev, [newId]: [] }));
+      showToast(`Added "${item.name}" to Keymaps`);
+    },
+    [showToast]
+  );
+
+  const handleRemoveCustomKeymap = useCallback(
+    (id: string) => {
+      setCustomKeymaps((prev) => prev.filter((k) => k.id !== id));
+      setBtMappings((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      showToast('Removed custom keymap');
+    },
+    [showToast]
+  );
+
+  const handleAddCustomButton = useCallback(
+    (item: { label: string; icon: string; endpoint: string }) => {
+      setCustomButtons((prev) => {
+        if (prev.some((b) => b.endpoint === item.endpoint)) return prev;
+        return [...prev, item];
+      });
+      showToast(`Added "${item.label}" button to remote deck`);
+    },
+    [showToast]
+  );
+
+  const handleRemoveCustomButton = useCallback(
+    (index: number) => {
+      setCustomButtons((prev) => prev.filter((_, idx) => idx !== index));
+      showToast('Removed button');
+    },
+    [showToast]
+  );
+
+  // Single-dispatch queue refs (Crash-proof protection against overloading LuaSocket)
+  const isDispatchingRef = useRef<boolean>(false);
+  const dispatchQueueRef = useRef<{ endpoint: string; label: string; feedback: 'next' | 'prev' | 'secondary' } | null>(null);
+  const lastDispatchTimeRef = useRef<number>(0);
+  const retainedBeaconsRef = useRef<HTMLImageElement[]>([]);
+  const wakeLockObjRef = useRef<WakeLockSentinel | null>(null);
 
   // Save changes
   useEffect(() => {
@@ -755,6 +825,14 @@ export default function App() {
     (actionKey: string) => {
       if (actionKey === 'nextPage') handleNextPage();
       else if (actionKey === 'prevPage') handlePrevPage();
+      else if (actionKey === 'showToc') dispatchCommand('/koreader/event/ShowToc', 'Chapters / TOC', 'secondary');
+      else if (actionKey === 'toggleAutoTurn') {
+        setAutoTurnActive((prev) => {
+          const nextState = !prev;
+          showToast(nextState ? `⏳ Auto-Turn Started (${autoSec}s)` : '⏸️ Auto-Turn Paused');
+          return nextState;
+        });
+      }
       else if (actionKey === 'fullRefresh') dispatchCommand('/koreader/event/FullRefresh', 'Flash Screen', 'secondary');
       else if (actionKey === 'fontIncrease') dispatchCommand('/koreader/event/IncreaseFontSize/1', 'Font +', 'secondary');
       else if (actionKey === 'fontDecrease') dispatchCommand('/koreader/event/DecreaseFontSize/1', 'Font -', 'secondary');
@@ -762,8 +840,14 @@ export default function App() {
       else if (actionKey === 'nightMode') dispatchCommand('/koreader/event/ToggleNightMode', 'Night Mode', 'secondary');
       else if (actionKey === 'nextChapter') dispatchCommand('/koreader/event/GotoNextChapter', 'Next Chapter', 'secondary');
       else if (actionKey === 'prevChapter') dispatchCommand('/koreader/event/GotoPrevChapter', 'Prev Chapter', 'secondary');
+      else {
+        const custom = customKeymaps.find((c) => c.id === actionKey);
+        if (custom) {
+          dispatchCommand(custom.endpoint, custom.name, 'secondary');
+        }
+      }
     },
-    [handleNextPage, handlePrevPage, dispatchCommand]
+    [handleNextPage, handlePrevPage, dispatchCommand, autoSec, showToast, customKeymaps]
   );
 
   const getKeyCandidates = (e: KeyboardEvent): string[] => {
@@ -2001,6 +2085,10 @@ export default function App() {
         kindleHost={host}
         learningAction={learningAction}
         onSetLearningAction={setLearningAction}
+        customKeymaps={customKeymaps}
+        onAddCustomKeymap={handleAddCustomKeymap}
+        onRemoveCustomKeymap={handleRemoveCustomKeymap}
+        onTestEndpoint={(ep, label) => dispatchCommand(ep, label, 'secondary')}
       />
 
       {/* 9. MODAL: SETTINGS & SETUP */}
@@ -2351,42 +2439,51 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Add Presets */}
-              <div className="pt-2 border-t border-current/10">
-                <span className="font-bold block mb-2 opacity-70">Catalog Presets</span>
-                <div className="space-y-2">
-                  {CATALOG_PRESETS.map((p) => {
-                    const exists = customButtons.some((c) => c.endpoint === p.endpoint);
-                    return (
+              {/* Custom Buttons on Remote Deck */}
+              {customButtons.length > 0 && (
+                <div className="pt-2 border-t border-current/10">
+                  <span className="font-bold block mb-2 opacity-70">Custom Buttons on Deck ({customButtons.length})</span>
+                  <div className="space-y-2">
+                    {customButtons.map((btn, idx) => (
                       <div
-                        key={p.endpoint}
+                        key={`custom-${idx}`}
                         className={`p-2.5 rounded-xl border flex items-center justify-between ${
                           isDark ? 'bg-[#121316] border-[#27272A]' : 'bg-[#F4F3EF] border-[#DCD9CE]'
                         }`}
                       >
-                        <div>
-                          <div className="font-bold flex items-center gap-1.5">
-                            <span>{p.icon}</span>
-                            <span>{p.name}</span>
+                        <div className="min-w-0 pr-2">
+                          <div className="font-bold flex items-center gap-1.5 truncate">
+                            <span className="text-[#D9532F]">{btn.icon}</span>
+                            <span className="truncate">{btn.label}</span>
                           </div>
-                          <div className="text-[10px] opacity-60">{p.desc}</div>
+                          <div className="text-[10px] font-mono opacity-60 truncate">{btn.endpoint}</div>
                         </div>
                         <button
-                          disabled={exists}
-                          onClick={() => {
-                            setCustomButtons((prev) => [...prev, { label: p.name, icon: p.icon, endpoint: p.endpoint }]);
-                            showToast(`Added ${p.name}`);
-                          }}
-                          className={`px-3 py-1 rounded-md text-xs font-semibold border cursor-pointer ${
-                            exists ? 'opacity-40 cursor-not-allowed' : 'border-[#D9532F] text-[#D9532F] bg-[#D9532F]/10'
-                          }`}
+                          type="button"
+                          onClick={() => handleRemoveCustomButton(idx)}
+                          className="w-7 h-7 rounded-lg border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                          title="Remove custom button"
                         >
-                          {exists ? 'Added' : '+ Add'}
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
+              )}
+
+              {/* KOReader Endpoint Directory for 1-Click Buttons */}
+              <div className="pt-2 border-t border-current/10">
+                <EndpointDirectory
+                  isDark={isDark}
+                  mode="button"
+                  onTestEndpoint={(ep, label) => dispatchCommand(ep, label, 'secondary')}
+                  onAddAsButton={handleAddCustomButton}
+                  existingButtonEndpoints={[
+                    ...STANDARD_ACTIONS.map((a) => a.endpoint),
+                    ...customButtons.map((c) => c.endpoint),
+                  ]}
+                />
               </div>
             </div>
           </div>

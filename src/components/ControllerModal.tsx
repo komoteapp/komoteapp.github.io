@@ -5,9 +5,19 @@ import {
   RotateCcw,
   Check,
   Sparkles,
-  Bluetooth,
   Info,
+  Trash2,
+  Plus,
 } from 'lucide-react';
+import { EndpointDirectory } from './EndpointDirectory';
+
+export interface CustomKeymap {
+  id: string;
+  name: string;
+  icon: string;
+  endpoint: string;
+  desc?: string;
+}
 
 export const GP_BUTTON_LABELS: Record<number, string> = {
   0: 'A / Cross (Btn 0)',
@@ -63,6 +73,8 @@ export const COMMON_BUTTONS = [
 export const ACTIONS_LIST = [
   { id: 'nextPage', name: 'Next Page (Advance)', icon: '→', desc: 'Flipping forward +1 page' },
   { id: 'prevPage', name: 'Previous Page (Rewind)', icon: '←', desc: 'Flipping back -1 page' },
+  { id: 'showToc', name: 'Open Chapters (TOC)', icon: '📖', desc: 'Open book Table of Contents & chapter list' },
+  { id: 'toggleAutoTurn', name: 'Toggle Auto Turn', icon: '⏳', desc: 'Start or pause auto page turner with controller' },
   { id: 'fullRefresh', name: 'Full Refresh (Flash)', icon: '⚡', desc: 'Clears E-Ink ghosting' },
   { id: 'fontIncrease', name: 'Font Larger (A+)', icon: 'A+', desc: 'Increases font size by 1' },
   { id: 'fontDecrease', name: 'Font Smaller (A-)', icon: 'A-', desc: 'Decreases font size by 1' },
@@ -105,6 +117,10 @@ export interface ControllerModalProps {
   kindleHost: string;
   learningAction?: string | null;
   onSetLearningAction?: (action: string | null) => void;
+  customKeymaps?: CustomKeymap[];
+  onAddCustomKeymap?: (item: { name: string; icon: string; endpoint: string; desc?: string }) => void;
+  onRemoveCustomKeymap?: (id: string) => void;
+  onTestEndpoint?: (endpoint: string, label: string) => void;
 }
 
 export const ControllerModal: React.FC<ControllerModalProps> = ({
@@ -119,6 +135,10 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
   connectedGamepadName,
   learningAction = null,
   onSetLearningAction = () => {},
+  customKeymaps = [],
+  onAddCustomKeymap,
+  onRemoveCustomKeymap,
+  onTestEndpoint,
 }) => {
   const [learnTimer, setLearnTimer] = useState<number>(15);
   const focusTrapRef = useRef<HTMLInputElement>(null);
@@ -405,7 +425,161 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
                   </div>
                 );
               })}
+
+              {/* Custom Keymaps Added by User */}
+              {customKeymaps.length > 0 && (
+                <div className="pt-2">
+                  <div className="text-[11px] font-bold opacity-75 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#D9532F]" />
+                    <span>Custom Endpoint Keymaps ({customKeymaps.length})</span>
+                  </div>
+                  <div className="space-y-2">
+                    {customKeymaps.map((act) => {
+                      const mappedButtons = btMappings[act.id] || [];
+                      const isLearning = learningAction === act.id;
+
+                      return (
+                        <div
+                          key={act.id}
+                          className={`p-3 rounded-2xl border transition-all ${
+                            isLearning
+                              ? 'border-[#D9532F] bg-[#D9532F]/5 shadow-sm'
+                              : isDark
+                              ? 'bg-[#121316] border-[#27272A]'
+                              : 'bg-[#F4F3EF] border-[#DCD9CE]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs flex items-center gap-1.5">
+                                <span className="text-[#D9532F]">{act.icon}</span>
+                                <span className="truncate">{act.name}</span>
+                                <span className="text-[9.5px] px-1.5 py-0.2 rounded bg-[#D9532F]/15 text-[#D9532F] font-mono">
+                                  Custom
+                                </span>
+                              </div>
+                              <div className="text-[10px] font-mono opacity-60 mt-0.5 truncate">
+                                {act.endpoint}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {/* Map Button (Learning Mode) */}
+                              <button
+                                onClick={() => {
+                                  if (isLearning) {
+                                    onSetLearningAction(null);
+                                  } else {
+                                    onSetLearningAction(act.id);
+                                    focusTrapRef.current?.focus();
+                                  }
+                                }}
+                                className={`h-7 px-2.5 rounded-lg text-xs font-semibold border cursor-pointer transition-all flex items-center gap-1 ${
+                                  isLearning
+                                    ? 'bg-[#D9532F] text-white border-[#D9532F] animate-pulse'
+                                    : 'border-[#D9532F] text-[#D9532F] bg-[#D9532F]/10 hover:bg-[#D9532F]/20'
+                                }`}
+                              >
+                                <span>{isLearning ? `Listening (${learnTimer}s)...` : '🎯 Map Button'}</span>
+                              </button>
+
+                              {/* Delete Custom Keymap */}
+                              {onRemoveCustomKeymap && (
+                                <button
+                                  type="button"
+                                  onClick={() => onRemoveCustomKeymap(act.id)}
+                                  className="w-7 h-7 rounded-lg border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 flex items-center justify-center cursor-pointer transition-colors"
+                                  title="Delete custom keymap"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mapped Button Tags */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                            {mappedButtons.length === 0 ? (
+                              <span className="text-[10.5px] opacity-40 italic">No buttons bound yet.</span>
+                            ) : (
+                              mappedButtons.map((btn, idx) => (
+                                <span
+                                  key={btn}
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[10px] border ${
+                                    isDark
+                                      ? 'bg-[#18181B] border-[#27272A] text-gray-200'
+                                      : 'bg-white border-[#DCD9CE] text-gray-800'
+                                  }`}
+                                >
+                                  <span>{formatButtonName(btn)}</span>
+                                  <button
+                                    onClick={() => handleRemoveButton(act.id, idx)}
+                                    className="opacity-50 hover:opacity-100 hover:text-rose-500 cursor-pointer text-[11px] ml-0.5"
+                                    title="Remove button"
+                                  >
+                                    ✕
+                                  </button>
+                                </span>
+                              ))
+                            )}
+
+                            {/* Dropdown Quick Pick Button */}
+                            <select
+                              onChange={(e) => {
+                                handleAddFromDropdown(act.id, e.target.value);
+                                e.target.value = '';
+                              }}
+                              defaultValue=""
+                              className={`h-6 px-1.5 rounded-md text-[10px] font-mono border cursor-pointer ${
+                                isDark
+                                  ? 'bg-[#18181B] border-[#27272A] text-gray-300'
+                                  : 'bg-white border-[#DCD9CE] text-gray-700'
+                              }`}
+                              title="Pick from standard keys"
+                            >
+                              <option value="" disabled>
+                                + Pick Key...
+                              </option>
+                              {COMMON_BUTTONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Directory of all KOReader Endpoints below keymaps */}
+          <div className="pt-2">
+            <EndpointDirectory
+              isDark={isDark}
+              mode="keymap"
+              onTestEndpoint={onTestEndpoint}
+              onAddAsKeymap={onAddCustomKeymap}
+              existingKeymapEndpoints={[
+                ...ACTIONS_LIST.map((a) => {
+                  if (a.id === 'showToc') return '/koreader/event/ShowToc';
+                  if (a.id === 'nextPage') return '/koreader/event/GotoViewRel/1';
+                  if (a.id === 'prevPage') return '/koreader/event/GotoViewRel/-1';
+                  if (a.id === 'fullRefresh') return '/koreader/event/FullRefresh';
+                  if (a.id === 'fontIncrease') return '/koreader/event/IncreaseFontSize/1';
+                  if (a.id === 'fontDecrease') return '/koreader/event/DecreaseFontSize/1';
+                  if (a.id === 'toggleBookmark') return '/koreader/event/ToggleBookmark';
+                  if (a.id === 'nightMode') return '/koreader/event/ToggleNightMode';
+                  if (a.id === 'nextChapter') return '/koreader/event/GotoNextChapter';
+                  if (a.id === 'prevChapter') return '/koreader/event/GotoPrevChapter';
+                  return '';
+                }),
+                ...(customKeymaps || []).map((c) => c.endpoint),
+              ]}
+            />
           </div>
         </div>
 
