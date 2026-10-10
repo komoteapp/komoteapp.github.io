@@ -9,7 +9,6 @@ import {
   Trash2,
   Plus,
 } from 'lucide-react';
-import { EndpointDirectory } from './EndpointDirectory';
 
 export interface CustomKeymap {
   id: string;
@@ -73,15 +72,19 @@ export const COMMON_BUTTONS = [
 export const ACTIONS_LIST = [
   { id: 'nextPage', name: 'Next Page (Advance)', icon: '→', desc: 'Flipping forward +1 page' },
   { id: 'prevPage', name: 'Previous Page (Rewind)', icon: '←', desc: 'Flipping back -1 page' },
-  { id: 'showToc', name: 'Open Chapters (TOC)', icon: '📖', desc: 'Open book Table of Contents & chapter list' },
   { id: 'toggleAutoTurn', name: 'Toggle Auto Turn', icon: '⏳', desc: 'Start or pause auto page turner with controller' },
-  { id: 'fullRefresh', name: 'Full Refresh (Flash)', icon: '⚡', desc: 'Clears E-Ink ghosting' },
-  { id: 'fontIncrease', name: 'Font Larger (A+)', icon: 'A+', desc: 'Increases font size by 1' },
-  { id: 'fontDecrease', name: 'Font Smaller (A-)', icon: 'A-', desc: 'Decreases font size by 1' },
-  { id: 'toggleBookmark', name: 'Toggle Bookmark', icon: '🔖', desc: 'Bookmarks current page' },
-  { id: 'nightMode', name: 'Night Mode', icon: '🌙', desc: 'Inverts colors for dark reading' },
-  { id: 'nextChapter', name: 'Next Chapter', icon: '⏭️', desc: 'Skips to next chapter' },
-  { id: 'prevChapter', name: 'Prev Chapter', icon: '⏮️', desc: 'Rewinds to previous chapter' },
+  { id: 'fontIncrease', name: 'Font +', icon: 'A+', desc: 'Increase reading font size' },
+  { id: 'fontDecrease', name: 'Font -', icon: 'A-', desc: 'Decrease reading font size' },
+  { id: 'lightIncrease', name: 'Light +', icon: '💡+', desc: 'Increase frontlight intensity' },
+  { id: 'lightDecrease', name: 'Light -', icon: '💡-', desc: 'Decrease frontlight intensity' },
+  { id: 'warmthIncrease', name: 'Warmth +', icon: '🌅+', desc: 'Increase amber warmth light' },
+  { id: 'warmthDecrease', name: 'Warmth -', icon: '🌅-', desc: 'Decrease amber warmth light' },
+  { id: 'lineSpaceIncrease', name: 'Spacing +', icon: '↕️+', desc: 'Increase reading line spacing (70%–130% steps)' },
+  { id: 'lineSpaceDecrease', name: 'Spacing -', icon: '↕️-', desc: 'Decrease reading line spacing (70%–130% steps)' },
+  { id: 'nextChapter', name: 'Next Chapter', icon: '⏭️', desc: 'Skip ahead to next chapter' },
+  { id: 'prevChapter', name: 'Prev Chapter', icon: '⏮️', desc: 'Rewind to previous chapter' },
+  { id: 'nightMode', name: 'Night Mode', icon: '🌙', desc: 'Invert display colors' },
+  { id: 'toggleBookmark', name: 'Bookmark', icon: '🔖', desc: 'Bookmark current page' },
 ];
 
 export const formatButtonName = (btn: string): string => {
@@ -118,9 +121,8 @@ export interface ControllerModalProps {
   learningAction?: string | null;
   onSetLearningAction?: (action: string | null) => void;
   customKeymaps?: CustomKeymap[];
-  onAddCustomKeymap?: (item: { name: string; icon: string; endpoint: string; desc?: string }) => void;
   onRemoveCustomKeymap?: (id: string) => void;
-  onTestEndpoint?: (endpoint: string, label: string) => void;
+  onOpenCustomEndpointModal?: () => void;
 }
 
 export const ControllerModal: React.FC<ControllerModalProps> = ({
@@ -136,9 +138,8 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
   learningAction = null,
   onSetLearningAction = () => {},
   customKeymaps = [],
-  onAddCustomKeymap,
   onRemoveCustomKeymap,
-  onTestEndpoint,
+  onOpenCustomEndpointModal,
 }) => {
   const [learnTimer, setLearnTimer] = useState<number>(15);
   const focusTrapRef = useRef<HTMLInputElement>(null);
@@ -556,31 +557,20 @@ export const ControllerModal: React.FC<ControllerModalProps> = ({
             </div>
           </div>
 
-          {/* Directory of all KOReader Endpoints below keymaps */}
-          <div className="pt-2">
-            <EndpointDirectory
-              isDark={isDark}
-              mode="keymap"
-              onTestEndpoint={onTestEndpoint}
-              onAddAsKeymap={onAddCustomKeymap}
-              existingKeymapEndpoints={[
-                ...ACTIONS_LIST.map((a) => {
-                  if (a.id === 'showToc') return '/koreader/event/ShowToc';
-                  if (a.id === 'nextPage') return '/koreader/event/GotoViewRel/1';
-                  if (a.id === 'prevPage') return '/koreader/event/GotoViewRel/-1';
-                  if (a.id === 'fullRefresh') return '/koreader/event/FullRefresh';
-                  if (a.id === 'fontIncrease') return '/koreader/event/IncreaseFontSize/1';
-                  if (a.id === 'fontDecrease') return '/koreader/event/DecreaseFontSize/1';
-                  if (a.id === 'toggleBookmark') return '/koreader/event/ToggleBookmark';
-                  if (a.id === 'nightMode') return '/koreader/event/ToggleNightMode';
-                  if (a.id === 'nextChapter') return '/koreader/event/GotoNextChapter';
-                  if (a.id === 'prevChapter') return '/koreader/event/GotoPrevChapter';
-                  return '';
-                }),
-                ...(customKeymaps || []).map((c) => c.endpoint),
-              ]}
-            />
-          </div>
+          {/* Custom Endpoint Action Button */}
+          {onOpenCustomEndpointModal && (
+            <div className="pt-2 flex items-center justify-between border-t border-current/10">
+              <span className="text-[11px] opacity-65">Want to map another KOReader event?</span>
+              <button
+                type="button"
+                onClick={onOpenCustomEndpointModal}
+                className="px-3 py-1.5 rounded-xl border border-dashed border-[#D9532F]/50 text-[#D9532F] bg-[#D9532F]/5 hover:bg-[#D9532F]/15 font-semibold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Custom Endpoint</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

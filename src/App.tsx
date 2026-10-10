@@ -41,7 +41,7 @@ import { triggerTactileFeedback } from './utils/soundAndHaptics';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { ControllerModal } from './components/ControllerModal';
 import { InstallModal } from './components/InstallModal';
-import { EndpointDirectory } from './components/EndpointDirectory';
+import { CustomEndpointModal } from './components/CustomEndpointModal';
 
 interface ActionMeta {
   id: string;
@@ -56,10 +56,12 @@ const STANDARD_ACTIONS: ActionMeta[] = [
   { id: 'font_dec', name: 'Font -', icon: 'A-', endpoint: '/koreader/event/DecreaseFontSize/1', defaultVisible: true },
   { id: 'light_inc', name: 'Light +', icon: '💡+', endpoint: '/koreader/event/IncreaseFlIntensity/1', defaultVisible: true },
   { id: 'light_dec', name: 'Light -', icon: '💡-', endpoint: '/koreader/event/DecreaseFlIntensity/1', defaultVisible: true },
-  { id: 'toc', name: 'Chapters', icon: '📖', endpoint: '/koreader/event/ShowToc', defaultVisible: true },
+  { id: 'warmth_inc', name: 'Warmth +', icon: '🌅+', endpoint: '/koreader/event/IncreaseFlWarmth/1', defaultVisible: true },
+  { id: 'warmth_dec', name: 'Warmth -', icon: '🌅-', endpoint: '/koreader/event/DecreaseFlWarmth/1', defaultVisible: true },
+  { id: 'line_space_inc', name: 'Spacing +', icon: '↕️+', endpoint: '/koreader/event/ConfigChange/line_spacing/105/&/SetLineSpace/105', defaultVisible: true },
+  { id: 'line_space_dec', name: 'Spacing -', icon: '↕️-', endpoint: '/koreader/event/ConfigChange/line_spacing/95/&/SetLineSpace/95', defaultVisible: true },
   { id: 'next_ch', name: 'Next Ch.', icon: '⏭️', endpoint: '/koreader/event/GotoNextChapter', defaultVisible: true },
   { id: 'prev_ch', name: 'Prev Ch.', icon: '⏮️', endpoint: '/koreader/event/GotoPrevChapter', defaultVisible: true },
-  { id: 'refresh', name: 'Flash Screen', icon: '⚡', endpoint: '/koreader/event/FullRefresh', defaultVisible: true },
   { id: 'night', name: 'Night Mode', icon: '🌙', endpoint: '/koreader/event/ToggleNightMode', defaultVisible: true },
   { id: 'bookmark', name: 'Bookmark', icon: '🔖', endpoint: '/koreader/event/ToggleBookmark', defaultVisible: true },
 ];
@@ -76,18 +78,24 @@ const ACCENT_COLORS = [
 
 export const TIMEOUT_OPTIONS = [0, 15, 30, 60, 120, 300];
 
+export const LINE_SPACING_STEPS = [70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130];
+
 const DEFAULT_BT_MAPPINGS: Record<string, string[]> = {
   nextPage: [],
   prevPage: [],
-  showToc: [],
   toggleAutoTurn: [],
-  fullRefresh: [],
   fontIncrease: [],
   fontDecrease: [],
-  toggleBookmark: [],
-  nightMode: [],
+  lightIncrease: [],
+  lightDecrease: [],
+  warmthIncrease: [],
+  warmthDecrease: [],
+  lineSpaceIncrease: [],
+  lineSpaceDecrease: [],
   nextChapter: [],
   prevChapter: [],
+  nightMode: [],
+  toggleBookmark: [],
 };
 
 const GP_BUTTON_LABELS = [
@@ -191,7 +199,7 @@ export default function App() {
   const [showLogs, setShowLogs] = useState<boolean>(false);
 
   // UI Modals
-  const [activeModal, setActiveModal] = useState<'none' | 'settings' | 'controller' | 'customize' | 'pwa' | 'install'>('none');
+  const [activeModal, setActiveModal] = useState<'none' | 'settings' | 'controller' | 'customize' | 'pwa' | 'install' | 'custom_endpoint'>('none');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Diagnostics & Status
@@ -200,10 +208,22 @@ export default function App() {
   const [sessionTurns, setSessionTurns] = useState<number>(0);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  // Line Spacing state (Discrete steps 70% to 130%, default 100%)
+  const [lineSpacing, setLineSpacing] = useState<number>(() => {
+    const saved = localStorage.getItem('komote_line_spacing');
+    return saved ? Math.min(130, Math.max(70, Number(saved))) : 100;
+  });
+  const lineSpacingRef = useRef<number>(lineSpacing);
+
+  useEffect(() => {
+    lineSpacingRef.current = lineSpacing;
+    localStorage.setItem('komote_line_spacing', String(lineSpacing));
+  }, [lineSpacing]);
+
   // Bluetooth & Custom Buttons (Clean slate by default, saves last selected on device)
   const [btMappings, setBtMappings] = useState<Record<string, string[]>>(() => {
     try {
-      const saved = localStorage.getItem('komote_custom_bt_mappings_v6');
+      const saved = localStorage.getItem('komote_custom_bt_mappings_v9') || localStorage.getItem('komote_custom_bt_mappings_v8');
       if (saved) {
         const parsed = JSON.parse(saved);
         const result: Record<string, string[]> = { ...DEFAULT_BT_MAPPINGS };
@@ -225,12 +245,20 @@ export default function App() {
 
   const [buttonVisibility, setButtonVisibility] = useState<Record<string, boolean>>(() => {
     try {
-      const saved = localStorage.getItem('komote_btn_vis_v9');
-      if (saved) return JSON.parse(saved);
+      const saved = localStorage.getItem('komote_btn_vis_v12') || localStorage.getItem('komote_btn_vis_v11');
       const initial: Record<string, boolean> = {};
       STANDARD_ACTIONS.forEach((a) => {
         initial[a.id] = a.defaultVisible;
       });
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...initial,
+          ...parsed,
+          line_space_inc: parsed.line_space_inc ?? true,
+          line_space_dec: parsed.line_space_dec ?? true,
+        };
+      }
       return initial;
     } catch {
       const initial: Record<string, boolean> = {};
@@ -267,6 +295,14 @@ export default function App() {
     localStorage.setItem('komote_custom_keymaps_v1', JSON.stringify(customKeymaps));
   }, [customKeymaps]);
 
+  useEffect(() => {
+    localStorage.setItem('komote_custom_bt_mappings_v9', JSON.stringify(btMappings));
+  }, [btMappings]);
+
+  useEffect(() => {
+    localStorage.setItem('komote_btn_vis_v12', JSON.stringify(buttonVisibility));
+  }, [buttonVisibility]);
+
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -274,24 +310,33 @@ export default function App() {
     }, 2400);
   }, []);
 
-  const handleAddCustomKeymap = useCallback(
-    (item: { name: string; icon: string; endpoint: string; desc?: string }) => {
+  const handleCreateCustomEndpoint = useCallback(
+    (data: { name: string; icon: string; endpoint: string; addToKeymap: boolean; addToButton: boolean }) => {
       const newId = `km_${Date.now()}`;
-      setCustomKeymaps((prev) => {
-        if (prev.some((k) => k.endpoint === item.endpoint)) return prev;
-        return [
-          ...prev,
-          {
-            id: newId,
-            name: item.name,
-            icon: item.icon,
-            endpoint: item.endpoint,
-            desc: item.desc,
-          },
-        ];
-      });
-      setBtMappings((prev) => ({ ...prev, [newId]: [] }));
-      showToast(`Added "${item.name}" to Keymaps`);
+      if (data.addToKeymap) {
+        setCustomKeymaps((prev) => {
+          if (prev.some((k) => k.endpoint === data.endpoint)) return prev;
+          return [
+            ...prev,
+            {
+              id: newId,
+              name: data.name,
+              icon: data.icon,
+              endpoint: data.endpoint,
+            },
+          ];
+        });
+        setBtMappings((prev) => ({ ...prev, [newId]: [] }));
+      }
+
+      if (data.addToButton) {
+        setCustomButtons((prev) => {
+          if (prev.some((b) => b.endpoint === data.endpoint)) return prev;
+          return [...prev, { label: data.name, icon: data.icon, endpoint: data.endpoint }];
+        });
+      }
+
+      showToast(`✓ Added "${data.name}"`);
     },
     [showToast]
   );
@@ -305,17 +350,6 @@ export default function App() {
         return copy;
       });
       showToast('Removed custom keymap');
-    },
-    [showToast]
-  );
-
-  const handleAddCustomButton = useCallback(
-    (item: { label: string; icon: string; endpoint: string }) => {
-      setCustomButtons((prev) => {
-        if (prev.some((b) => b.endpoint === item.endpoint)) return prev;
-        return [...prev, item];
-      });
-      showToast(`Added "${item.label}" button to remote deck`);
     },
     [showToast]
   );
@@ -820,12 +854,46 @@ export default function App() {
     setAutoRemaining((r) => (r > clamped ? clamped : r));
   }, []);
 
+  // Line Spacing Stepper (Supports 70% to 130% discrete endpoints)
+  const adjustLineSpacing = useCallback(
+    (direction: 'increase' | 'decrease') => {
+      const current = lineSpacingRef.current;
+      let currentIndex = LINE_SPACING_STEPS.indexOf(current);
+      if (currentIndex === -1) currentIndex = LINE_SPACING_STEPS.indexOf(100);
+
+      let nextIndex = currentIndex;
+      if (direction === 'increase') {
+        if (currentIndex < LINE_SPACING_STEPS.length - 1) {
+          nextIndex = currentIndex + 1;
+        } else {
+          nextIndex = currentIndex;
+        }
+      } else {
+        if (currentIndex > 0) {
+          nextIndex = currentIndex - 1;
+        } else {
+          nextIndex = currentIndex;
+        }
+      }
+
+      const nextVal = LINE_SPACING_STEPS[nextIndex];
+      lineSpacingRef.current = nextVal;
+      setLineSpacing(nextVal);
+      localStorage.setItem('komote_line_spacing', String(nextVal));
+
+      const endpoint = `/koreader/event/ConfigChange/line_spacing/${nextVal}/&/SetLineSpace/${nextVal}`;
+      const label = `Spacing: ${nextVal}%`;
+      dispatchCommand(endpoint, label, 'secondary');
+      showToast(`↕️ Spacing: ${nextVal}%`);
+    },
+    [dispatchCommand, showToast]
+  );
+
   // --- BLUETOOTH CONTROLLER & KEYBOARD ENGINE ---
   const triggerMappedAction = useCallback(
     (actionKey: string) => {
       if (actionKey === 'nextPage') handleNextPage();
       else if (actionKey === 'prevPage') handlePrevPage();
-      else if (actionKey === 'showToc') dispatchCommand('/koreader/event/ShowToc', 'Chapters / TOC', 'secondary');
       else if (actionKey === 'toggleAutoTurn') {
         setAutoTurnActive((prev) => {
           const nextState = !prev;
@@ -833,13 +901,18 @@ export default function App() {
           return nextState;
         });
       }
-      else if (actionKey === 'fullRefresh') dispatchCommand('/koreader/event/FullRefresh', 'Flash Screen', 'secondary');
       else if (actionKey === 'fontIncrease') dispatchCommand('/koreader/event/IncreaseFontSize/1', 'Font +', 'secondary');
       else if (actionKey === 'fontDecrease') dispatchCommand('/koreader/event/DecreaseFontSize/1', 'Font -', 'secondary');
-      else if (actionKey === 'toggleBookmark') dispatchCommand('/koreader/event/ToggleBookmark', 'Bookmark', 'secondary');
-      else if (actionKey === 'nightMode') dispatchCommand('/koreader/event/ToggleNightMode', 'Night Mode', 'secondary');
+      else if (actionKey === 'lightIncrease') dispatchCommand('/koreader/event/IncreaseFlIntensity/1', 'Light +', 'secondary');
+      else if (actionKey === 'lightDecrease') dispatchCommand('/koreader/event/DecreaseFlIntensity/1', 'Light -', 'secondary');
+      else if (actionKey === 'warmthIncrease') dispatchCommand('/koreader/event/IncreaseFlWarmth/1', 'Warmth +', 'secondary');
+      else if (actionKey === 'warmthDecrease') dispatchCommand('/koreader/event/DecreaseFlWarmth/1', 'Warmth -', 'secondary');
+      else if (actionKey === 'lineSpaceIncrease') adjustLineSpacing('increase');
+      else if (actionKey === 'lineSpaceDecrease') adjustLineSpacing('decrease');
       else if (actionKey === 'nextChapter') dispatchCommand('/koreader/event/GotoNextChapter', 'Next Chapter', 'secondary');
       else if (actionKey === 'prevChapter') dispatchCommand('/koreader/event/GotoPrevChapter', 'Prev Chapter', 'secondary');
+      else if (actionKey === 'nightMode') dispatchCommand('/koreader/event/ToggleNightMode', 'Night Mode', 'secondary');
+      else if (actionKey === 'toggleBookmark') dispatchCommand('/koreader/event/ToggleBookmark', 'Bookmark', 'secondary');
       else {
         const custom = customKeymaps.find((c) => c.id === actionKey);
         if (custom) {
@@ -847,7 +920,7 @@ export default function App() {
         }
       }
     },
-    [handleNextPage, handlePrevPage, dispatchCommand, autoSec, showToast, customKeymaps]
+    [handleNextPage, handlePrevPage, dispatchCommand, autoSec, showToast, customKeymaps, adjustLineSpacing]
   );
 
   const getKeyCandidates = (e: KeyboardEvent): string[] => {
@@ -1406,144 +1479,57 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Greyscale icon buttons, no text, not bright */}
-                <div className="grid grid-cols-4 gap-2" data-zen-interactive="true">
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/GotoPrevChapter', 'Prev Chapter', 'secondary');
-                      showToast('⏮️ Prev Chapter');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Prev Chapter"
-                  >
-                    <SkipBack className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/GotoNextChapter', 'Next Chapter', 'secondary');
-                      showToast('⏭️ Next Chapter');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Next Chapter"
-                  >
-                    <SkipForward className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/FullRefresh', 'Flash Screen', 'secondary');
-                      showToast('⚡ Flash Screen');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Flash Screen"
-                  >
-                    <Zap className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/IncreaseFlIntensity/1', 'Light +', 'secondary');
-                      showToast('💡 Light +');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Light +"
-                  >
-                    <Sun className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/DecreaseFlIntensity/1', 'Light -', 'secondary');
-                      showToast('💡 Light -');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Light -"
-                  >
-                    <SunDim className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/IncreaseFontSize/1', 'Font +', 'secondary');
-                      showToast('A+ Font Larger');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Font +"
-                  >
-                    <Type className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/DecreaseFontSize/1', 'Font -', 'secondary');
-                      showToast('A- Font Smaller');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Font -"
-                  >
-                    <Type className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    data-zen-interactive="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      dispatchCommand('/koreader/event/ToggleNightMode', 'Night Mode', 'secondary');
-                      showToast('🌙 Night Mode');
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    className="h-11 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] active:bg-white/[0.14] border border-white/10 flex items-center justify-center text-white/35 hover:text-white/70 active:scale-95 transition-all cursor-pointer"
-                    title="Night Mode"
-                  >
-                    <Moon className="w-5 h-5" />
-                  </button>
+                {/* Active Kindle Controls mirrored in Zen Mode */}
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-2" data-zen-interactive="true">
+                  {STANDARD_ACTIONS.filter((act) => buttonVisibility[act.id] !== false).map((act) => (
+                    <button
+                      key={`zen-${act.id}`}
+                      type="button"
+                      data-zen-interactive="true"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (act.id === 'line_space_inc') {
+                          adjustLineSpacing('increase');
+                        } else if (act.id === 'line_space_dec') {
+                          adjustLineSpacing('decrease');
+                        } else {
+                          dispatchCommand(act.endpoint, act.name, 'secondary');
+                          showToast(act.name);
+                        }
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseUp={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onTouchEnd={(e) => e.stopPropagation()}
+                      className="min-h-[46px] rounded-xl bg-white/[0.04] hover:bg-white/[0.1] active:bg-white/[0.18] border border-white/10 flex flex-col items-center justify-center p-1 text-white/50 hover:text-white active:scale-95 transition-all cursor-pointer"
+                      title={act.id === 'line_space_inc' || act.id === 'line_space_dec' ? `${act.name} (Current: ${lineSpacing}%)` : act.name}
+                    >
+                      <span className="text-xs font-bold leading-tight">{act.icon}</span>
+                      <span className="text-[8.5px] opacity-75 truncate max-w-full text-center">{act.name}</span>
+                    </button>
+                  ))}
+
+                  {customButtons.map((btn, idx) => (
+                    <button
+                      key={`zen-custom-${idx}`}
+                      type="button"
+                      data-zen-interactive="true"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dispatchCommand(btn.endpoint, btn.label, 'secondary');
+                        showToast(btn.label);
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseUp={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onTouchEnd={(e) => e.stopPropagation()}
+                      className="min-h-[46px] rounded-xl bg-white/[0.04] hover:bg-white/[0.1] active:bg-white/[0.18] border border-white/10 flex flex-col items-center justify-center p-1 text-white/50 hover:text-white active:scale-95 transition-all cursor-pointer"
+                      title={btn.label}
+                    >
+                      <span className="text-xs font-bold text-[#D9532F] leading-tight">{btn.icon}</span>
+                      <span className="text-[8.5px] opacity-75 truncate max-w-full text-center">{btn.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : (
@@ -1855,16 +1841,24 @@ export default function App() {
               </button>
             </div>
 
-            {/* Render in a strict 4-column grid */}
-            <div className="grid grid-cols-4 gap-2">
+            {/* Render in a 4-column (mobile) or 6-column (tablet/desktop) grid for clean alignment */}
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-2">
               {STANDARD_ACTIONS.filter((act) => buttonVisibility[act.id] !== false).map((act) => (
                 <button
                   key={act.id}
-                  onClick={() => dispatchCommand(act.endpoint, act.name, 'secondary')}
+                  onClick={() => {
+                    if (act.id === 'line_space_inc') {
+                      adjustLineSpacing('increase');
+                    } else if (act.id === 'line_space_dec') {
+                      adjustLineSpacing('decrease');
+                    } else {
+                      dispatchCommand(act.endpoint, act.name, 'secondary');
+                    }
+                  }}
                   className={`min-h-[46px] p-1.5 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer transition-all active:scale-95 ${
                     isDark ? 'bg-[#121316] border-[#27272A] hover:bg-[#202025]' : 'bg-[#F4F3EF] border-[#DCD9CE] hover:bg-[#EAE8E1]'
                   }`}
-                  title={act.name}
+                  title={act.id === 'line_space_inc' || act.id === 'line_space_dec' ? `${act.name} (Current: ${lineSpacing}%)` : act.name}
                 >
                   <span className="text-xs font-bold leading-tight">{act.icon}</span>
                   <span className="text-[10px] font-medium opacity-85 truncate max-w-full">{act.name}</span>
@@ -2086,9 +2080,8 @@ export default function App() {
         learningAction={learningAction}
         onSetLearningAction={setLearningAction}
         customKeymaps={customKeymaps}
-        onAddCustomKeymap={handleAddCustomKeymap}
         onRemoveCustomKeymap={handleRemoveCustomKeymap}
-        onTestEndpoint={(ep, label) => dispatchCommand(ep, label, 'secondary')}
+        onOpenCustomEndpointModal={() => setActiveModal('custom_endpoint')}
       />
 
       {/* 9. MODAL: SETTINGS & SETUP */}
@@ -2472,18 +2465,17 @@ export default function App() {
                 </div>
               )}
 
-              {/* KOReader Endpoint Directory for 1-Click Buttons */}
-              <div className="pt-2 border-t border-current/10">
-                <EndpointDirectory
-                  isDark={isDark}
-                  mode="button"
-                  onTestEndpoint={(ep, label) => dispatchCommand(ep, label, 'secondary')}
-                  onAddAsButton={handleAddCustomButton}
-                  existingButtonEndpoints={[
-                    ...STANDARD_ACTIONS.map((a) => a.endpoint),
-                    ...customButtons.map((c) => c.endpoint),
-                  ]}
-                />
+              {/* Add Custom Endpoint Button */}
+              <div className="pt-2 border-t border-current/10 flex items-center justify-between">
+                <span className="text-[11px] opacity-65">Want to add another action?</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveModal('custom_endpoint')}
+                  className="px-3 py-1.5 rounded-xl border border-dashed border-[#D9532F]/50 text-[#D9532F] bg-[#D9532F]/5 hover:bg-[#D9532F]/15 font-semibold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Custom Endpoint</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2495,6 +2487,14 @@ export default function App() {
         isOpen={activeModal === 'pwa' || activeModal === 'install'}
         onClose={() => setActiveModal('none')}
         isDark={isDark}
+      />
+
+      {/* 12. MODAL: CUSTOM ENDPOINT POPUP */}
+      <CustomEndpointModal
+        isOpen={activeModal === 'custom_endpoint'}
+        onClose={() => setActiveModal('none')}
+        isDark={isDark}
+        onSubmit={handleCreateCustomEndpoint}
       />
     </div>
   );
